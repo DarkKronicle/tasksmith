@@ -1,0 +1,18 @@
+* Overview
+
+  eletask (elegant task) is a TaskWarrior "wrapper" for prettier printing and easy parsing. 
+
+** Goals
+
+   - TaskWarrior can be hard to quickly parse with the eyes, it's visually noisy. 
+     This project should improve this and make nice looking lists.
+   - A full featured TUI that adds some QOL and makes it a breeze to manage your tasks.
+
+** Libraries
+
+   - https://github.com/ratatui-org/ratatui
+
+* Broad Todo
+
+  - ( ) Fix parsing to handle UDA's
+  - ( ) Add subtasks
