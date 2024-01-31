@@ -1,42 +1,13 @@
-use std::io;
-
-use crate::task::Tasks;
+use crate::app::App;
 use crate::ui::task::TaskWidget;
 
-use ratatui::{prelude::*, widgets::*};
-
 use color_eyre::Result;
+use ratatui::Frame;
 
 
-fn ui(f: &mut Frame, tasks: Tasks) {
+pub fn draw(f: &mut Frame, app: &mut App) -> Result<()> {
     let area = f.size();
-    // let block = Block::default().title(block::Title::from("Hello world!").alignment(Alignment::Center));
-    // f.render_widget(block, area);
-    // let header = Row::new(vec!["Description", "Urg"]).bottom_margin(1).style(Style::new().bold());
-    // let rows = tasks.tasks.iter().map(|task| Row::new(vec![task.description.clone(), task.urgency.to_string()]));
-    // let widths = [
-    //     Constraint::Percentage(95),
-    //     Constraint::Percentage(5),
-    // ];
-
-    let widget = TaskWidget::new(&tasks);
-    f.render_widget(widget, area);
-
-}
-
-
-pub fn display_table(tasks: Tasks) -> Result<()> {
-    crossterm::terminal::enable_raw_mode()?;
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::with_options(
-        backend, 
-        TerminalOptions { viewport: Viewport::Inline(8) }
-    )?;
-
-    terminal.draw(|f| ui(f, tasks))?;
-
-    crossterm::terminal::disable_raw_mode()?;
-    // terminal.clear()?;
+    let task_widget = TaskWidget::new(&app.task_graph);
+    f.render_widget(task_widget, area);
     Ok(())
 }

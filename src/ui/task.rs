@@ -6,7 +6,6 @@ use ratatui::{
         Layout, 
         Rect}, 
     style::Style, 
-    text::Text, 
     widgets::{
         Block, 
         StatefulWidget, 
@@ -14,7 +13,9 @@ use ratatui::{
     }
 };
 
-use crate::task::{Tasks, Task};
+use crate::data::{Tasks, Task};
+
+use super::tree::{RootRow, RowEntry, TaskGraph};
 
 // Task widget will be able to do the following:
 // - render tasks in a pretty way (colors)
@@ -23,7 +24,7 @@ use crate::task::{Tasks, Task};
 // - folds: dependencies, tags, projects, (hopefully anything)
 //
 // this full class is based heavily on https://github.com/ratatui-org/ratatui/blob/main/src/widgets/table/table.rs
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TaskWidget<'a> {
 
     widths: Vec<Constraint>,
@@ -32,9 +33,8 @@ pub struct TaskWidget<'a> {
 
     block: Option<Block<'a>>,
 
-    tasks: &'a Tasks,
+    root: RootRow<'a>,
 
-    
 }
 
 pub struct TaskWidgetState<'a> {
@@ -52,12 +52,12 @@ impl Default for TaskWidgetState<'_> {
 
 impl TaskWidget<'_> {
 
-    pub fn new(tasks: &Tasks) -> TaskWidget {
+    pub fn new<'a>(tasks: &'a TaskGraph) -> TaskWidget<'a> {
         TaskWidget {
             style: Default::default(),
             widths: Default::default(),
             block: Default::default(),
-            tasks
+            root: tasks.get_root()
         }
     }
 
@@ -98,13 +98,10 @@ impl<'a> StatefulWidget for &TaskWidget<'a> {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         buf.set_style(area, self.style);
-        // NOTE: There are helper stuff for this Option<Block<'a>>, but I have no idea how to
-        // import them. Not really important, but could be cool.
         if let Some(b) = &self.block {
             b.clone().render(area, buf)
         }
         let widget_area = self.block.as_ref().map_or(area, |b| b.inner(area));
-        // END NOTE
 
         if widget_area.is_empty() {
             return;
@@ -129,29 +126,23 @@ impl TaskWidget<'_> {
     }
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer, state: &mut TaskWidgetState) {
-        if self.tasks.tasks.is_empty() {
+        if self.root.sub_tasks.is_empty() {
             return;
         }
 
         let mut y_offset = 0;
 
-        for (i, task) in self.tasks.tasks.iter().enumerate() {
-            let row_area = Rect::new(
-                area.x,
-                area.y + y_offset, 
-                area.width,
-                1,
-            );
-            let text: Text = task.description.as_str().into();
-            for (j, line) in text.lines.iter().enumerate() {
-                buf.set_line(row_area.x, row_area.y + j as u16, line, row_area.width);
-
-                y_offset += 1;
+        for (i, row) in self.root.sub_tasks.iter().enumerate() {
+            match row {
+                RowEntry::Task(trow) => {
+                    y_offset += trow.render(area, buf, state, 0, y_offset, 0)
+                },
+                RowEntry::Root(_) => {},
             }
             if y_offset >= area.height {
                 break;
             }
-        }
+        };
     }
 
 }

@@ -1,18 +1,43 @@
 use color_eyre::eyre::Result;
+use event::{Event, EventHandler};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use tui::Tui;
 
 mod display;
-mod task;
+mod data;
 mod ui;
+mod tui;
+mod app;
+mod event;
+mod update;
 
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    let mut tasks = task::get_tasks(Some("+PENDING"))?;
-    tasks.tasks.sort_unstable_by(|a, b| {
-        let a = a.urgency;
-        let b = b.urgency;
-        a.partial_cmp(&b).unwrap().reverse()
-    });
-    display::display_table(tasks)?;
+
+    let mut app = app::App::new()?;
+    app.refresh_tasks()?;
+
+    let backend = CrosstermBackend::new(std::io::stderr());
+    let events = EventHandler::new(250);
+    let terminal = Terminal::new(backend)?;
+    let mut tui = Tui::new(terminal, events);
+    tui.enter()?;
+
+    while !app.should_quit {
+        tui.draw(&mut app)?;
+
+        match tui.events.next()? {
+            Event::Tick => {},
+            Event::Key(key) => update::on_key(&mut app, key),
+            Event::Mouse(_) => {},
+            Event::Resize(_, _) => {},
+        }
+    }
+
+    // let mut tasks = data::get_tasks(Some("+PENDING"))?;
+    // tasks.sort_by_urgency();
+    // display::display_table(tasks)?;
+    tui.exit()?;
     Ok(())
 }
