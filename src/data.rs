@@ -182,21 +182,16 @@ pub struct Task {
     pub udas: HashMap<String, Value>,
 }
 
-pub fn from_json(val: Value) -> Result<Rc<HashMap<Uuid, Task>>> {
-    // FIX: This is a BAND-AID solution while I figure out interior mutability.
-    // This *needs* to all be done in the heap (the main reason I used RC here in the first place)
-    // Not just creating a reference counter at the last moment
-
-    // let mut task_map: Rc<HashMap<Uuid, Task>> = Rc::new(HashMap::new());
-    let mut task_map: HashMap<Uuid, Task> = HashMap::new();
+pub fn from_json(val: Value) -> Result<Box<HashMap<Uuid, Task>>> {
+    let mut task_map: Box<HashMap<Uuid, Task>> = Box::new(HashMap::new());
     for el in val.as_array().unwrap() {
         let task: Task = serde_json::from_value(el.clone())?;
         task_map.insert(task.uuid.clone(), task);
     };
-    Ok(Rc::new(task_map))
+    Ok(task_map)
 }
 
-pub fn get_tasks(filter: Option<&str>) -> Result<Rc<HashMap<Uuid, Task>>> {
+pub fn get_tasks(filter: Option<&str>) -> Result<Box<HashMap<Uuid, Task>>> {
     let output = if filter.is_some() {
         Command::new("task").arg(filter.unwrap()).arg("export").output()?
     } else {

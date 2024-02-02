@@ -13,7 +13,7 @@ use ratatui::{
     }
 };
 
-use crate::data::Task;
+use crate::{app::App, data::Task};
 
 use super::tree::{RootRow, RowEntry, TaskGraph};
 
@@ -52,12 +52,12 @@ impl Default for TaskWidgetState<'_> {
 
 impl TaskWidget<'_> {
 
-    pub fn new<'a>(tasks: &'a TaskGraph) -> TaskWidget<'a> {
+    pub fn new<'a>(tasks: &'a TaskGraph, app: &'a App) -> TaskWidget<'a> {
         TaskWidget {
             style: Default::default(),
             widths: Default::default(),
             block: Default::default(),
-            root: tasks.get_root()
+            root: tasks.get_root(app)
         }
     }
 

@@ -7,7 +7,7 @@ use ratatui::Frame;
 
 pub fn draw(f: &mut Frame, app: &mut App) -> Result<()> {
     let area = f.size();
-    let task_widget = TaskWidget::new(&app.task_graph);
+    let task_widget = TaskWidget::new(&app.task_graph, app);
     f.render_widget(task_widget, area);
     Ok(())
 }

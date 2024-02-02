@@ -8,7 +8,7 @@ use crate::{data::{get_tasks, Task}, ui::tree::TaskGraph};
 pub struct App {
     pub should_quit: bool,
     pub task_graph: TaskGraph,
-    pub tasks: Rc<HashMap<Uuid, Task>>,
+    pub tasks: Box<HashMap<Uuid, Task>>,
 }
 
 impl App {
@@ -17,7 +17,7 @@ impl App {
         Ok(Self {
             should_quit: false,
             task_graph: TaskGraph::empty(),
-            tasks: Rc::new(HashMap::new()),
+            tasks: Box::new(HashMap::new()),
         })
     }
 
@@ -29,7 +29,7 @@ impl App {
 
     pub fn refresh_tasks(&mut self) -> Result<()> {
         self.tasks = get_tasks(Some("+PENDING"))?;
-        self.task_graph = TaskGraph::new(self.tasks.clone());
+        self.task_graph = TaskGraph::new(self);
         Ok(())
     }
     

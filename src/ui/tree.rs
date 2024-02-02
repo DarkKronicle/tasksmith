@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::{HashMap, VecDeque}, ops::Index, rc::Rc};
 
-use crate::data::Task;
+use crate::{app::App, data::Task};
 use color_eyre::Result;
 use petgraph::{data::Build, graph::{NodeIndex, UnGraph}, Direction, Graph};
 use ratatui::{buffer::Buffer, layout::Rect, text::Text};
@@ -104,7 +104,6 @@ pub enum RowEntry<'a> {
 
 pub struct TaskGraph {
     graph: Graph<Option<Uuid>, ()>,
-    node_map: Rc<HashMap<Uuid, Task>>,
     root: NodeIndex,
 }
 
@@ -116,17 +115,16 @@ impl TaskGraph {
         let root = graph.add_node(None);
         Self {
             graph,
-            node_map: Rc::new(HashMap::new()),
             root,
         }
     }
 
-    pub fn new(tasks: Rc<HashMap<Uuid, Task>>) -> Self {
+    pub fn new(app: &App) -> Self {
         let mut graph = Graph::<Option<Uuid>, ()>::new();
         let mut node_map: HashMap<Uuid, NodeIndex> = HashMap::new();
         let root = graph.add_node(None);
 
-        for (uuid, task) in tasks.iter() {
+        for (uuid, task) in app.tasks.iter() {
             let task_index = node_map.entry(uuid.clone()).or_insert_with(|| {
                 let index = graph.add_node(Some(uuid.clone()));
                 index
@@ -147,28 +145,27 @@ impl TaskGraph {
         TaskGraph {
             graph,
             root,
-            node_map: tasks.clone(),
         }
     }
 
-    pub fn get_tasks(self: &Self, node: NodeIndex) -> Vec<RowEntry> {
+    pub fn get_tasks<'b>(self: &'b Self, app: &'b App, node: NodeIndex) -> Vec<RowEntry> {
         let mut tasks = vec![];
         let neighbors: Vec<_> = self.graph.neighbors_directed(node, Direction::Outgoing).collect();
 
         for n in neighbors {
             let task_uuid = self.graph.node_weight(n).unwrap();
-            let task = &self.node_map[&task_uuid.unwrap()];
+            let task = &app.tasks[&task_uuid.unwrap()];
             tasks.push(RowEntry::Task(TaskRow {
                 task: &task,
-                sub_tasks: self.get_tasks(n)
+                sub_tasks: self.get_tasks(app, n)
             }));
         };
         tasks
     }
 
-    pub fn get_root(&self) -> RootRow {
+    pub fn get_root<'b>(&'b self, app: &'b App) -> RootRow {
         RootRow {
-            sub_tasks: self.get_tasks(self.root)
+            sub_tasks: self.get_tasks(app, self.root)
         }
     }
 
