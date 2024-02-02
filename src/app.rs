@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap};
 
 use color_eyre::eyre::Result;
 use uuid::Uuid;
@@ -8,7 +8,7 @@ use crate::{data::{get_tasks, Task}, ui::tree::TaskGraph};
 pub struct App {
     pub should_quit: bool,
     pub task_graph: TaskGraph,
-    pub tasks: Box<HashMap<Uuid, Task>>,
+    pub tasks: HashMap<Uuid, Task>,
 }
 
 impl App {
@@ -17,7 +17,7 @@ impl App {
         Ok(Self {
             should_quit: false,
             task_graph: TaskGraph::empty(),
-            tasks: Box::new(HashMap::new()),
+            tasks: HashMap::default(),
         })
     }
 

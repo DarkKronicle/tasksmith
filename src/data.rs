@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use uuid::Uuid;
-use std::{collections::HashMap, process::Command, rc::Rc};
-use serde_json;
+use std::{collections::HashMap, process::Command};
+
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
 use color_eyre::Result;
@@ -11,7 +11,7 @@ mod date_parser {
     use serde::{Serializer, Deserializer};
     use super::*;
 
-    const FORMAT: &'static str = "%Y%m%dT%H%M%SZ";
+    const FORMAT: &str = "%Y%m%dT%H%M%SZ";
 
     pub fn serialize<S>(dt: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -37,7 +37,7 @@ mod optional_date_parser {
     use serde::{Serializer, Deserializer};
     use super::*;
 
-    const FORMAT: &'static str = "%Y%m%dT%H%M%SZ";
+    const FORMAT: &str = "%Y%m%dT%H%M%SZ";
     pub fn serialize<S>(dt: &Option<NaiveDateTime>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -182,16 +182,16 @@ pub struct Task {
     pub udas: HashMap<String, Value>,
 }
 
-pub fn from_json(val: Value) -> Result<Box<HashMap<Uuid, Task>>> {
-    let mut task_map: Box<HashMap<Uuid, Task>> = Box::new(HashMap::new());
+pub fn from_json(val: Value) -> Result<HashMap<Uuid, Task>> {
+    let mut task_map: HashMap<Uuid, Task> = HashMap::default();
     for el in val.as_array().unwrap() {
         let task: Task = serde_json::from_value(el.clone())?;
-        task_map.insert(task.uuid.clone(), task);
+        task_map.insert(task.uuid, task);
     };
     Ok(task_map)
 }
 
-pub fn get_tasks(filter: Option<&str>) -> Result<Box<HashMap<Uuid, Task>>> {
+pub fn get_tasks(filter: Option<&str>) -> Result<HashMap<Uuid, Task>> {
     let output = if filter.is_some() {
         Command::new("task").arg(filter.unwrap()).arg("export").output()?
     } else {

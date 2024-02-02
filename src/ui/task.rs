@@ -37,17 +37,12 @@ pub struct TaskWidget<'a> {
 
 }
 
+#[derive(Default)]
 pub struct TaskWidgetState<'a> {
     pub selected: Option<&'a Task>,
 }
 
-impl Default for TaskWidgetState<'_> {
 
-    fn default() -> Self {
-        Self { selected: None }
-    }
-    
-}
 
 
 impl TaskWidget<'_> {
@@ -107,7 +102,7 @@ impl<'a> StatefulWidget for &TaskWidget<'a> {
             return;
         }
 
-        let (header_area, rows_area) = self.layout(widget_area);
+        let (_header_area, rows_area) = self.layout(widget_area);
 
         self.render_tasks(rows_area, buf, state);
 
@@ -132,7 +127,7 @@ impl TaskWidget<'_> {
 
         let mut y_offset = 0;
 
-        for (i, row) in self.root.sub_tasks.iter().enumerate() {
+        for (_i, row) in self.root.sub_tasks.iter().enumerate() {
             match row {
                 RowEntry::Task(trow) => {
                     y_offset += trow.render(area, buf, state, 0, y_offset, 0)
