@@ -1,11 +1,14 @@
-use color_eyre::eyre::Result;
+use std::{collections::HashMap, rc::Rc};
 
-use crate::{data::{get_tasks, Tasks}, ui::tree::TaskGraph};
+use color_eyre::eyre::Result;
+use uuid::Uuid;
+
+use crate::{data::{get_tasks, Task}, ui::tree::TaskGraph};
 
 pub struct App {
     pub should_quit: bool,
     pub task_graph: TaskGraph,
-    pub tasks: Tasks,
+    pub tasks: Rc<HashMap<Uuid, Task>>,
 }
 
 impl App {
@@ -14,7 +17,7 @@ impl App {
         Ok(Self {
             should_quit: false,
             task_graph: TaskGraph::empty(),
-            tasks: Tasks::empty(),
+            tasks: Rc::new(HashMap::new()),
         })
     }
 
@@ -25,9 +28,8 @@ impl App {
     }
 
     pub fn refresh_tasks(&mut self) -> Result<()> {
-        let tasks = get_tasks(Some("+PENDING"))?;
-        let graph = TaskGraph::new(tasks);
-        self.task_graph = graph;
+        self.tasks = get_tasks(Some("+PENDING"))?;
+        self.task_graph = TaskGraph::new(self.tasks.clone());
         Ok(())
     }
     

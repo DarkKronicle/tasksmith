@@ -1,6 +1,6 @@
 use chrono::NaiveDateTime;
 use uuid::Uuid;
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, process::Command, rc::Rc};
 use serde_json;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
@@ -182,42 +182,21 @@ pub struct Task {
     pub udas: HashMap<String, Value>,
 }
 
-#[derive(Clone, Debug)]
-pub struct Tasks {
-    pub tasks: Vec<Task>,
-    pub filter: Option<String>,
+pub fn from_json(val: Value) -> Result<Rc<HashMap<Uuid, Task>>> {
+    // FIX: This is a BAND-AID solution while I figure out interior mutability.
+    // This *needs* to all be done in the heap (the main reason I used RC here in the first place)
+    // Not just creating a reference counter at the last moment
+
+    // let mut task_map: Rc<HashMap<Uuid, Task>> = Rc::new(HashMap::new());
+    let mut task_map: HashMap<Uuid, Task> = HashMap::new();
+    for el in val.as_array().unwrap() {
+        let task: Task = serde_json::from_value(el.clone())?;
+        task_map.insert(task.uuid.clone(), task);
+    };
+    Ok(Rc::new(task_map))
 }
 
-impl Tasks {
-
-    pub fn from_json(filter: Option<String>, val: Value) -> Result<Tasks> {
-        let mut task_list: Vec<Task> = Vec::new();
-        for el in val.as_array().unwrap() {
-            let task: Task = serde_json::from_value(el.clone())?;
-            task_list.push(task);
-        };
-        Ok(Tasks { tasks: task_list, filter })
-    }
-
-    pub fn sort_by_urgency(&mut self) {
-        self.tasks.sort_unstable_by(|a, b| {
-            let a = a.urgency;
-            let b = b.urgency;
-            a.partial_cmp(&b).unwrap().reverse()
-        })
-    }
-
-    pub fn empty() -> Tasks {
-        Tasks {
-            tasks: vec![],
-            filter: None,
-        }
-    }
-
-}
-
-
-pub fn get_tasks(filter: Option<&str>) -> Result<Tasks> {
+pub fn get_tasks(filter: Option<&str>) -> Result<Rc<HashMap<Uuid, Task>>> {
     let output = if filter.is_some() {
         Command::new("task").arg(filter.unwrap()).arg("export").output()?
     } else {
@@ -225,7 +204,7 @@ pub fn get_tasks(filter: Option<&str>) -> Result<Tasks> {
     };
     let contents = String::from_utf8_lossy(&output.stdout);
     let json: Value = serde_json::from_str(&contents)?;
-    let result = Tasks::from_json(filter.map(|s| s.to_string()), json)?;
+    let result = from_json(json)?;
     Ok(result)
 }
 

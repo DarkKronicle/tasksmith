@@ -13,7 +13,7 @@ use ratatui::{
     }
 };
 
-use crate::data::{Tasks, Task};
+use crate::data::Task;
 
 use super::tree::{RootRow, RowEntry, TaskGraph};
 

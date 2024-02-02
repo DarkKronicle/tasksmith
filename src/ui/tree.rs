@@ -1,6 +1,6 @@
-use std::{cell::RefCell, collections::{HashMap, VecDeque}, ops::Index};
+use std::{cell::RefCell, collections::{HashMap, VecDeque}, ops::Index, rc::Rc};
 
-use crate::data::{Task, Tasks};
+use crate::data::Task;
 use color_eyre::Result;
 use petgraph::{data::Build, graph::{NodeIndex, UnGraph}, Direction, Graph};
 use ratatui::{buffer::Buffer, layout::Rect, text::Text};
@@ -103,10 +103,9 @@ pub enum RowEntry<'a> {
 }
 
 pub struct TaskGraph {
-    graph: Graph<Option<Task>, ()>,
-    node_map: HashMap<Uuid, NodeIndex>,
+    graph: Graph<Option<Uuid>, ()>,
+    node_map: Rc<HashMap<Uuid, Task>>,
     root: NodeIndex,
-    tasks: Tasks,
 }
 
 // TODO: When I'm good at rust look at this again, I think there's a better way to do this
@@ -117,39 +116,38 @@ impl TaskGraph {
         let root = graph.add_node(None);
         Self {
             graph,
-            node_map: HashMap::new(),
+            node_map: Rc::new(HashMap::new()),
             root,
-            tasks: Tasks::empty()
         }
     }
 
-    pub fn new(tasks: Tasks) -> Self {
-        let mut graph = Graph::<Option<Task>, ()>::new();
-        let mut node_map = HashMap::new();
+    pub fn new(tasks: Rc<HashMap<Uuid, Task>>) -> Self {
+        let mut graph = Graph::<Option<Uuid>, ()>::new();
+        let mut node_map: HashMap<Uuid, NodeIndex> = HashMap::new();
         let root = graph.add_node(None);
 
-        for task in &tasks.tasks.clone() {
-            let index = graph.add_node(Some(task.clone()));
-            node_map.insert(task.uuid, index);
-        }
-
-        for task in &tasks.tasks {
+        for (uuid, task) in tasks.iter() {
+            let task_index = node_map.entry(uuid.clone()).or_insert_with(|| {
+                let index = graph.add_node(Some(uuid.clone()));
+                index
+            }).clone();
+            // NOTE: wth, this ^ clone is really important. Should revisit this
+            
             if let Some(parent_uuid) = &task.sub_of {
-                if let Some(&parent_index) = node_map.get(parent_uuid) {
-                    let child_index = node_map[&task.uuid];
-                    graph.add_edge(parent_index, child_index, ());
-                }
+                let parent_index = node_map.entry(parent_uuid.clone()).or_insert_with(|| {
+                    let index = graph.add_node(Some(parent_uuid.clone()));
+                    index
+                });
+                graph.add_edge(parent_index.clone(), task_index.clone(), ());
             } else {
-                let child_index = node_map[&task.uuid];
-                graph.add_edge(root, child_index, ());
+                graph.add_edge(root, task_index.clone(), ());
             }
         }
 
         TaskGraph {
             graph,
-            node_map,
             root,
-            tasks
+            node_map: tasks.clone(),
         }
     }
 
@@ -158,8 +156,10 @@ impl TaskGraph {
         let neighbors: Vec<_> = self.graph.neighbors_directed(node, Direction::Outgoing).collect();
 
         for n in neighbors {
+            let task_uuid = self.graph.node_weight(n).unwrap();
+            let task = &self.node_map[&task_uuid.unwrap()];
             tasks.push(RowEntry::Task(TaskRow {
-                task: self.graph.node_weight(n).unwrap().as_ref().unwrap(),
+                task: &task,
                 sub_tasks: self.get_tasks(n)
             }));
         };
