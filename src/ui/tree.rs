@@ -1,35 +1,17 @@
-use std::{collections::{HashMap}};
+use std::{cmp::max, collections::{HashMap}};
 
-use crate::{app::App, data::Task};
-use color_eyre::Result;
-use petgraph::{data::Build, graph::{NodeIndex}, Direction, Graph};
-use ratatui::{buffer::Buffer, layout::Rect, text::Text};
+use crate::{app::App, data::{Task, TaskStatus}};
+use petgraph::{graph::{NodeIndex}, Direction, Graph};
+use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
 use uuid::Uuid;
-use petgraph::visit::{Walker};
+use strum::IntoEnumIterator;
 
-use super::task::TaskWidgetState;
-
-
-pub enum SortType {
-    Urgency,
-}
-
-pub enum RowAction {
-
-}
-
-pub enum RenderContext {
-    List,
-}
+use super::{style::SharedTheme, task::{TableColumn, TaskWidgetState}};
 
 
-trait Row {
+const FOLD_OPEN: &str = "";
+const FOLD_CLOSE: &str = "";
 
-    fn compare(&self, other: &dyn Row, sorttype: SortType) -> std::cmp::Ordering;
-
-    fn action(&self, action: RowAction) -> Result<()>;
-    
-}
 
 #[derive(Debug)]
 pub struct TaskRow<'a> {
@@ -42,56 +24,160 @@ pub struct RootRow<'a> {
     pub sub_tasks: Vec<RowEntry<'a>>,
 }
 
-impl<'a> Row for RootRow<'a> {
-    fn compare(&self, _other: &dyn Row, _sorttype: SortType) -> std::cmp::Ordering {
-        todo!()
-    }
-
-    fn action(&self, _action: RowAction) -> Result<()> {
-        todo!()
-    }
+#[derive(Debug)]
+pub struct TextRow<'a> {
+    pub sub_tasks: Vec<RowEntry<'a>>,
+    pub text: Text<'a>,
+    pub sort_by: i8
 }
 
-impl<'a> Row for TaskRow<'a> {
-    fn compare(&self, _other: &dyn Row, _sorttype: SortType) -> std::cmp::Ordering {
-        todo!()
-    }
-
-    fn action(&self, _action: RowAction) -> Result<()> {
-        todo!()
-    }
-}
-
-impl<'a> TaskRow<'a> {
-    fn from(task: &'a Task) -> Self {
-        TaskRow {
-            task,
-            sub_tasks: vec![]
+pub fn render_row(
+    row: &RowEntry, 
+    area: Rect, 
+    buf: &mut Buffer, 
+    state: &mut TaskWidgetState, 
+    y: u16, 
+    depth: u16, 
+    theme: SharedTheme, 
+    widths: &Vec<(TableColumn, u16, u16)>
+    ) -> u16 {
+    match row {
+        RowEntry::Task(t) => {
+            t.render(area, buf, state, y, depth, theme.clone(), widths)
+        },
+        RowEntry::Text(t) => {
+            t.render(area, buf, state, y, depth, theme.clone(), widths)
+        },
+        _ => {
+            0
         }
     }
+}
 
-    pub fn render(&self, area: Rect, buf: &mut Buffer, state: &mut TaskWidgetState, x: u16, y: u16, depth: u16) -> u16 {
+impl<'a> TextRow<'a> {
+    pub fn render(
+        &self, 
+        area: Rect, 
+        buf: &mut Buffer, 
+        state: &mut TaskWidgetState, 
+        y: u16, 
+        depth: u16, 
+        theme: SharedTheme, 
+        widths: &Vec<(TableColumn, u16, u16)>
+    ) -> u16 {
+        if self.sub_tasks.len() == 0 {
+            return 0;
+        }
         let row_area = Rect::new(
-            area.x + x,
-            area.y + y, 
+            area.x,
+            area.y + y,
             area.width,
             1,
         );
-        let text: Text = self.task.description.as_str().into();
-        let mut y_offset = 0;
-        for (j, line) in text.lines.iter().enumerate() {
-            buf.set_line(row_area.x, row_area.y + j as u16, line, row_area.width);
-            y_offset += 1;
-        };
+        let mut y_max = 0;
+        for line in &self.text {
+            if y + y_max >= area.height {
+                return y_max
+            }
+            buf.set_line(1 + row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
+            y_max += 1;
+        }
         for task in &self.sub_tasks {
-            match task {
-                RowEntry::Task(t) => {
-                    y_offset += t.render(row_area, buf, state, 2, y_offset, depth + 1);
+            y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+        }
+        y_max
+    }
+}
+
+
+impl<'a> TaskRow<'a> {
+
+    pub fn render(
+        &self, 
+        area: Rect, 
+        buf: &mut Buffer, 
+        state: &mut TaskWidgetState, 
+        y: u16, 
+        depth: u16, 
+        theme: SharedTheme, 
+        widths: &Vec<(TableColumn, u16, u16)>
+    ) -> u16 {
+        let row_area = Rect::new(
+            area.x,
+            area.y + y,
+            area.width,
+            1,
+        );
+        let mut y_max = 0;
+        for (column, c_x, _width) in widths {
+            match column {
+                TableColumn::Description => {
+                    let mut y_offset = 0;
+                    let line: Line = Line::from(vec![
+                        Span::styled(&self.task.description, theme.text()),
+                    ]);
+                    let text: Text = line.into();
+                    for line in &text.lines {
+                        if y + y_offset >= area.height {
+                            return max(y_max, y_offset);
+                        }
+                        buf.set_line(1 + row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
+                        y_offset += 1;
+                    };
+                    y_max = max(y_offset, y_max);
                 },
-                _ => {},
+                TableColumn::State => {
+                    let (sequence, style) = match self.task.status {
+                        TaskStatus::Blocked => {
+                            ("", Style::default().fg(Color::Blue))
+                        },
+                        TaskStatus::Completed => {
+                            ("", Style::default().fg(Color::Blue))
+                        },
+                        TaskStatus::Waiting => {
+                            ("", Style::default().fg(Color::Blue))
+                        },
+                        TaskStatus::Deleted => {
+                            ("", Style::default().fg(Color::Gray))
+                        },
+                        TaskStatus::Recurring => {
+                            ("", Style::default().fg(Color::Blue))
+                        },
+                        TaskStatus::Pending => {
+                            let urgency = self.task.urgency;
+                            let block = if urgency > 9.0 {
+                                "◼◼◼"
+                            } else if urgency > 6.0 {
+                                "◼◼"
+                            } else if urgency > 3.0 {
+                                "◼"
+                            } else {
+                                ""
+                            };
+                            (block, Style::default().fg(Color::Red))
+                        }
+                    };
+                    let span: Span = Span::styled(sequence, style);
+                    let text: Text = span.into();
+                    let mut y_offset = 0;
+                    for line in &text.lines {
+                        if y + y_offset >= area.height {
+                            return max(y_max, y_offset);
+                        }
+                        buf.set_line(row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
+                        y_offset += 1;
+                    };
+                    y_max = max(y_offset, y_max);
+                }
             }
         }
-        y_offset
+        for task in &self.sub_tasks {
+            if y + y_max >= area.height {
+                return y_max
+            }
+            y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+        }
+        y_max
     }
 }
 
@@ -99,6 +185,7 @@ impl<'a> TaskRow<'a> {
 #[derive(Debug)]
 pub enum RowEntry<'a> {
     Root(RootRow<'a>),
+    Text(TextRow<'a>),
     Task(TaskRow<'a>),
 }
 
@@ -126,10 +213,8 @@ impl TaskGraph {
 
         for (uuid, task) in app.tasks.iter() {
             let task_index = *node_map.entry(*uuid).or_insert_with(|| {
-                
                 graph.add_node(Some(*uuid))
             });
-            // NOTE: wth, this ^ clone is really important. Should revisit this
             
             if let Some(parent_uuid) = &task.sub_of {
                 let parent_index = node_map.entry(*parent_uuid).or_insert_with(|| {
@@ -148,27 +233,67 @@ impl TaskGraph {
         }
     }
 
-    pub fn get_tasks<'b>(&'b self, app: &'b App, node: NodeIndex) -> Vec<RowEntry> {
-        let mut tasks = vec![];
+    pub fn get_tasks<'b>(&'b self, app: &'b App, node: NodeIndex, separate: bool) -> Vec<RowEntry> {
         let neighbors: Vec<_> = self.graph.neighbors_directed(node, Direction::Outgoing).collect();
+
+        // let mut tasks = vec![];
+        let mut status_map: HashMap<TaskStatus, Vec<RowEntry>> = TaskStatus::iter().map(|t| (t, vec![])).collect();
 
         for n in neighbors {
             let task_uuid = self.graph.node_weight(n).unwrap();
             let task = &app.tasks[&task_uuid.unwrap()];
-            tasks.push(RowEntry::Task(TaskRow {
-                task,
-                sub_tasks: self.get_tasks(app, n)
-            }));
+            status_map.get_mut(&task.status).unwrap().push(
+                RowEntry::Task(TaskRow {
+                    task,
+                    sub_tasks: {
+                        let mut tasks = self.get_tasks(app, n, false);
+                        Self::sort_rows(&mut tasks);
+                        tasks
+                    }
+                }));
         };
-        tasks
+        let mut sorted_statuses = TaskStatus::iter().collect::<Vec<_>>();
+        sorted_statuses.sort();
+        let mut rows: Vec<RowEntry> = if separate {
+            status_map.into_iter().map(|(status, mut entries)| {
+                let span: Span = status.to_string().into();
+                let text: Text = span.style(Style::default().fg(Color::Green)).into();
+                Self::sort_rows(&mut entries);
+                RowEntry::Text(TextRow {
+                    sub_tasks: entries,
+                    text,
+                    sort_by: sorted_statuses.iter().position(|s| s == &status).unwrap() as i8
+                })
+            }).collect()
+        } else {
+            status_map.into_iter().map(|(_, entries)| entries).flatten().collect()
+        };
+        Self::sort_rows(&mut rows);
+        rows
+    }
+
+    pub fn sort_rows(rows: &mut Vec<RowEntry>) {
+        rows.sort_by(|a, b| {
+            if let RowEntry::Task(a) = a {
+                if let RowEntry::Task(b) = b {
+                    if a.task.status == b.task.status {
+                        return b.task.urgency.partial_cmp(&a.task.urgency).expect("Invalid urgency");
+                    }
+                    return a.task.status.partial_cmp(&b.task.status).expect("Invalid status");
+                }
+            } else if let RowEntry::Text(a) = a {
+                if let RowEntry::Text(b) = b {
+                    return a.sort_by.cmp(&b.sort_by);
+                }
+            }
+            return std::cmp::Ordering::Equal;
+        });
     }
 
     pub fn get_root<'b>(&'b self, app: &'b App) -> RootRow {
         RootRow {
-            sub_tasks: self.get_tasks(app, self.root)
+            sub_tasks: self.get_tasks(app, self.root, true)
         }
     }
-
-
 
 }

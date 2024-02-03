@@ -3,12 +3,13 @@ use std::{collections::HashMap};
 use color_eyre::eyre::Result;
 use uuid::Uuid;
 
-use crate::{data::{get_tasks, Task}, ui::tree::TaskGraph};
+use crate::{data::{get_tasks, Task}, ui::{style::SharedTheme, tree::TaskGraph}};
 
 pub struct App {
     pub should_quit: bool,
     pub task_graph: TaskGraph,
     pub tasks: HashMap<Uuid, Task>,
+    pub theme: SharedTheme,
 }
 
 impl App {
@@ -18,6 +19,7 @@ impl App {
             should_quit: false,
             task_graph: TaskGraph::empty(),
             tasks: HashMap::default(),
+            theme: SharedTheme::default(),
         })
     }
 
@@ -28,7 +30,7 @@ impl App {
     }
 
     pub fn refresh_tasks(&mut self) -> Result<()> {
-        self.tasks = get_tasks(Some("+PENDING"))?;
+        self.tasks = get_tasks(None)?;
         self.task_graph = TaskGraph::new(self);
         Ok(())
     }

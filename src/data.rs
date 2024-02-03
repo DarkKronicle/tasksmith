@@ -1,4 +1,5 @@
 use chrono::NaiveDateTime;
+use strum_macros::EnumIter;
 use uuid::Uuid;
 use std::{collections::HashMap, process::Command};
 
@@ -131,6 +132,35 @@ pub struct Annotation {
     description: String,
 }
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, PartialOrd, EnumIter, Hash, Eq, Ord)]
+pub enum TaskStatus {
+
+    #[serde(rename = "pending")]
+    Pending,
+
+    #[serde(rename = "blocked")]
+    Blocked,
+
+    #[serde(rename = "completed")]
+    Completed,
+
+    #[serde(rename = "waiting")]
+    Waiting,
+
+    #[serde(rename = "recurring")]
+    Recurring,
+
+    #[serde(rename = "deleted")]
+    Deleted,
+
+}
+
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Task {
     pub id: u32,
@@ -155,7 +185,7 @@ pub struct Task {
     #[serde(with = "optional_date_parser", default = "default_time")]
     pub end: Option<NaiveDateTime>,
 
-    pub status: String,
+    pub status: TaskStatus,
 
     #[serde(default = "Vec::new")]
     pub tags: Vec<String>,
