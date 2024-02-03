@@ -2,21 +2,22 @@ use std::{cmp::max, collections::{HashMap}};
 
 use crate::{app::App, data::{Task, TaskStatus}};
 use petgraph::{graph::{NodeIndex}, Direction, Graph};
-use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
+use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style, Styled}, text::{Line, Span, Text}};
 use uuid::Uuid;
 use strum::IntoEnumIterator;
 
 use super::{style::SharedTheme, task::{TableColumn, TaskWidgetState}};
 
 
-const FOLD_OPEN: &str = "";
-const FOLD_CLOSE: &str = "";
+const FOLD_OPEN: &str = "";
+const FOLD_CLOSE: &str = "";
 
 
 #[derive(Debug)]
 pub struct TaskRow<'a> {
     task: &'a Task,
     pub sub_tasks: Vec<RowEntry<'a>>,
+    pub folded: bool,
 }
 
 #[derive(Debug)]
@@ -28,7 +29,8 @@ pub struct RootRow<'a> {
 pub struct TextRow<'a> {
     pub sub_tasks: Vec<RowEntry<'a>>,
     pub text: Text<'a>,
-    pub sort_by: i8
+    pub sort_by: i8,
+    pub folded: bool,
 }
 
 pub fn render_row(
@@ -75,15 +77,29 @@ impl<'a> TextRow<'a> {
             1,
         );
         let mut y_max = 0;
+        let fold_text: Span = if self.folded {
+            FOLD_CLOSE.into()
+        } else {
+            FOLD_OPEN.into()
+        };
+        let carrot_text: Text = fold_text.style(theme.fold()).into();
+        for line in &carrot_text {
+            buf.set_line(row_area.x, row_area.y, line, row_area.width);
+        }
         for line in &self.text {
             if y + y_max >= area.height {
                 return y_max
             }
-            buf.set_line(1 + row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
+            buf.set_line(2 + row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
             y_max += 1;
         }
-        for task in &self.sub_tasks {
-            y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+        if !self.folded {
+            for task in &self.sub_tasks {
+                if y + y_max >= area.height {
+                    return y_max
+                }
+                y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+            }
         }
         y_max
     }
@@ -121,7 +137,7 @@ impl<'a> TaskRow<'a> {
                         if y + y_offset >= area.height {
                             return max(y_max, y_offset);
                         }
-                        buf.set_line(1 + row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
+                        buf.set_line(2 + row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
                         y_offset += 1;
                     };
                     y_max = max(y_offset, y_max);
@@ -171,11 +187,13 @@ impl<'a> TaskRow<'a> {
                 }
             }
         }
-        for task in &self.sub_tasks {
-            if y + y_max >= area.height {
-                return y_max
+        if !self.folded {
+            for task in &self.sub_tasks {
+                if y + y_max >= area.height {
+                    return y_max
+                }
+                y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
             }
-            y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
         }
         y_max
     }
@@ -249,7 +267,8 @@ impl TaskGraph {
                         let mut tasks = self.get_tasks(app, n, false);
                         Self::sort_rows(&mut tasks);
                         tasks
-                    }
+                    },
+                    folded: false
                 }));
         };
         let mut sorted_statuses = TaskStatus::iter().collect::<Vec<_>>();
@@ -262,7 +281,8 @@ impl TaskGraph {
                 RowEntry::Text(TextRow {
                     sub_tasks: entries,
                     text,
-                    sort_by: sorted_statuses.iter().position(|s| s == &status).unwrap() as i8
+                    sort_by: sorted_statuses.iter().position(|s| s == &status).unwrap() as i8,
+                    folded: status == TaskStatus::Deleted
                 })
             }).collect()
         } else {
