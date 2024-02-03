@@ -1,18 +1,63 @@
 * Overview
 
-  eletask (elegant task) is a TaskWarrior "wrapper" for prettier printing and easy parsing. 
+  TaskSmith is a TUI for Taskwarrior. TaskSmith's goal is to be an extension to Taskwarrior
+  that is both pretty and functional.
 
-** Goals
+  This TUI isn't made for everyone, some people will like the concise look that Taskwarrior gives,
+  this project was mainly made to curate to my preference.
 
-   - TaskWarrior can be hard to quickly parse with the eyes, it's visually noisy. 
-     This project should improve this and make nice looking lists.
-   - A full featured TUI that adds some QOL and makes it a breeze to manage your tasks.
+  This is my first large rust project, so this file will serve to keep track of decisions I make.
+  - Because this is my first large project, there will probably be breaking changes throughout the beginning
+
+  TaskSmith will never change Taskwarrior data without user prompt first.
 
 ** Libraries
 
-   - https://github.com/ratatui-org/ratatui
+*** ratatui
 
-* Broad Todo
+    Pretty self explanatory, this is required for the TUI. 
 
-  - ( ) Fix parsing to handle UDA's
-  - ( ) Add subtasks
+*** petgraph
+
+    I'd eventually like to get rid of this (I think). Right now this handles the parsing
+    of task trees. 
+
+*** coloreyre
+
+    Handles errors in a good way. 
+
+*** serde
+    
+    Parsing of taskwarrior export and configurations.
+
+*** strum
+
+    I don't think needed in the long run, I'm currently using it to iterate through TaskStatus enum.
+
+*** Clap
+
+    I want to add CLI support (maybe some wrappers for built in commands). Clap seems to be the best
+
+* UDAS
+
+** `sub_of`
+
+  I've implemented a sub-task system using the user defined attribute `sub_of`. This stores a UUID to the parent task.
+  This has been done in such a way to allow for infinite nesting of tasks.
+
+
+* The main TUI
+
+  The first step of the TUI is the list view. This is similar to Taskwarrior's default CLI look, but
+  it won't be as table-like. List view will show subtasks.
+
+  The left column will have filters.
+
+* Configuration
+
+  Most things should be configurable. Colors, characters (make it not nerd font dependent), behavior, sorting...
+
+* Potential Features
+
+- kanban
+
