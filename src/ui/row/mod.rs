@@ -33,13 +33,19 @@ pub fn render_row(
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RootRow<'a> {
     pub sub_tasks: Vec<RowEntry<'a>>,
 }
 
+impl Default for RootRow<'_> {
+    fn default() -> RootRow<'static> {
+        RootRow { sub_tasks: vec![] }
+    }
+}
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub enum RowEntry<'a> {
     Root(RootRow<'a>),
     Text(TextRow<'a>),
@@ -57,12 +63,8 @@ impl<'a> RowEntry<'a> {
         }
     }
 
-    pub fn folded(&self) -> bool {
-        match self {
-            Self::Root(_) => false,
-            Self::Task(r) => r.folded,
-            Self::Text(r) => r.folded,
-        }
+    pub fn has_children(&self) -> bool {
+        self.sub_tasks().len() > 0
     }
     
     pub fn len(&self) -> usize {
@@ -77,6 +79,22 @@ impl<'a> RowEntry<'a> {
         }
         let mut idx = 0;
         for t in self.sub_tasks().iter() {
+            let len = t.len();
+            idx += 1;
+            if idx + len > index {
+                return t.get(index - idx);
+            }
+            idx += len - 1;
+        }
+        None
+    }
+    
+    pub fn get_from_root(row: &'a RootRow, index: usize) -> Option<&'a RowEntry<'a>> {
+        if index == 0 {
+            return None
+        }
+        let mut idx = 0;
+        for t in row.sub_tasks.iter() {
             let len = t.len();
             idx += 1;
             if idx + len > index {

@@ -2,16 +2,15 @@ use std::cmp::max;
 
 use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
 
-use crate::{data::TaskStatus, ui::{tasklist::{TableColumn, TaskWidgetState}}};
+use crate::{data::TaskStatus, ui::tasklist::{TableColumn, TaskWidgetState}};
 use crate::data::Task;
 
 use super::{render_row, RenderContext, RowEntry, FOLD_CLOSE, FOLD_OPEN};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskRow<'a> {
     pub task: &'a Task,
     pub sub_tasks: Vec<RowEntry<'a>>,
-    pub folded: bool,
 }
 
 
@@ -32,6 +31,7 @@ impl<'a> TaskRow<'a> {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
+        let folded = state.folded.contains(&idx);
         if let Some(cursor_index) = state.cursor {
             if cursor_index == idx {
                 buf.set_style(row_area, context.theme.cursor());
@@ -44,7 +44,7 @@ impl<'a> TaskRow<'a> {
                     let mut lines = vec![];
                     if !self.sub_tasks.is_empty() {
                         // Are there items to actually fold?
-                        let fold_text: Span = if self.folded {
+                        let fold_text: Span = if folded {
                             FOLD_CLOSE.into()
                         } else {
                             FOLD_OPEN.into()
@@ -110,7 +110,7 @@ impl<'a> TaskRow<'a> {
                 }
             }
         }
-        if !self.folded {
+        if !folded {
             for task in &self.sub_tasks {
                 if context.y + y_max >= area.height {
                     return (idx, y_max)

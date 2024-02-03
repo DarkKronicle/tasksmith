@@ -17,6 +17,7 @@ fn main() -> Result<()> {
 
     let mut app = app::App::new()?;
     app.refresh_tasks()?;
+    // app.update_list_root();
 
     let backend = CrosstermBackend::new(std::io::stderr());
     let events = EventHandler::new(250);

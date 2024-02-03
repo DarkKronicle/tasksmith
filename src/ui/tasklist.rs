@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use ratatui::{
     buffer::Buffer, 
     layout::{
@@ -15,7 +17,7 @@ use ratatui::{
 
 use crate::app::App;
 
-use super::{row::RootRow, style::SharedTheme, taskgraph::TaskGraph};
+use super::{row::{RootRow, RowEntry}, style::SharedTheme, taskgraph::TaskGraph};
 
 // Task widget will be able to do the following:
 // - render tasks in a pretty way (colors)
@@ -33,7 +35,7 @@ pub struct TaskListWidget<'a> {
 
     block: Option<Block<'a>>,
 
-    root: RootRow<'a>,
+    root: &'a RootRow<'a>,
 
     theme: SharedTheme,
 
@@ -42,6 +44,7 @@ pub struct TaskListWidget<'a> {
 #[derive(Default, Clone, Debug)]
 pub struct TaskWidgetState {
     pub cursor: Option<usize>,
+    pub folded: HashSet<usize>,
 }
 
 impl TaskWidgetState {
@@ -63,16 +66,28 @@ impl TaskWidgetState {
         }
     }
 
+    pub fn fold(&mut self, root: &RowEntry) {
+        if let Some(c) = self.cursor {
+            if !self.folded.remove(&c) {
+                if let Some(row) = root.get(c){ 
+                    if row.has_children() {
+                        self.folded.insert(c);
+                    }
+                }
+            }
+        }
+    }
+
 }
 
 impl<'a> TaskListWidget<'a> {
 
-    pub fn new(tasks: &'a TaskGraph, app: &'a App) -> TaskListWidget<'a> {
+    pub fn new(root: &'a RootRow, app: &'a App) -> TaskListWidget<'a> {
         TaskListWidget {
             style: Default::default(),
             widths: vec![Constraint::Length(4), Constraint::Fill(40)],
             block: Default::default(),
-            root: tasks.get_root(app),
+            root,
             theme: app.theme.clone()
         }
     }

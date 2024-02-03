@@ -7,12 +7,11 @@ use super::{render_row, FOLD_CLOSE, FOLD_OPEN};
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextRow<'a> {
     pub sub_tasks: Vec<RowEntry<'a>>,
     pub text: Span<'a>,
     pub sort_by: i8,
-    pub folded: bool,
 }
 
 
@@ -25,21 +24,27 @@ impl<'a> TextRow<'a> {
         state: &mut TaskWidgetState, 
         context: RenderContext,
     ) -> (usize, u16) {
-        let mut idx = context.index + 1;
-        if self.sub_tasks.is_empty() {
-            return (idx, 0);
-        }
         let row_area = Rect::new(
             area.x,
             area.y + context.y,
             area.width,
             1,
         );
+        let mut idx = context.index + 1;
+        let folded = state.folded.contains(&idx);
+        if let Some(cursor_index) = state.cursor {
+            if cursor_index == idx {
+                buf.set_style(row_area, context.theme.cursor());
+            }
+        }
+        if self.sub_tasks.is_empty() {
+            return (idx, 0);
+        }
         let mut y_max = 0;
         let mut text_parts = vec![];
         if !self.sub_tasks.is_empty() {
             // Are there items to actually fold?
-            let fold_text: Span = if self.folded {
+            let fold_text: Span = if folded {
                 FOLD_CLOSE.into()
             } else {
                 FOLD_OPEN.into()
@@ -56,7 +61,7 @@ impl<'a> TextRow<'a> {
             buf.set_line(row_area.x + (context.depth * 2), row_area.y + y_max, line, row_area.width);
             y_max += 1;
         }
-        if !self.folded {
+        if !folded {
             for task in &self.sub_tasks {
                 if context.y + y_max >= area.height {
                     return (idx, y_max)

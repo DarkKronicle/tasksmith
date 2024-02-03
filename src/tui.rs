@@ -7,7 +7,7 @@ use crossterm::{
 };
 
 use crate::{
-    app::App, display, event::EventHandler
+    app::App, display, event::EventHandler, ui::{row::RootRow, taskgraph::TaskGraph}
 };
 
 pub type CrosstermTerminal = ratatui::Terminal<ratatui::backend::CrosstermBackend<std::io::Stderr>>;
@@ -60,7 +60,7 @@ impl Tui {
 
     pub fn draw(&mut self, app: &mut App) -> Result<()> {
         self.terminal.draw(|f| {
-            display::draw(f, app).expect("failed to draw")
+            display::draw(f, app).expect("failed to draw");
         })?;
         Ok(())
     }

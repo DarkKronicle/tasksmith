@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
-use crate::{app::App, data::TaskStatus};
-use petgraph::{graph::{NodeIndex}, Direction, Graph};
+use crate::{app::App, data::{Task, TaskStatus}};
+use petgraph::{graph::NodeIndex, Direction, Graph};
 use ratatui::{style::{Color, Style}, text::Span};
 use uuid::Uuid;
 use strum::IntoEnumIterator;
 
 use super::row::{task::TaskRow, text::TextRow, RootRow, RowEntry};
 
+#[derive(Debug, Clone)]
 pub struct TaskGraph {
     graph: Graph<Option<Uuid>, ()>,
     root: NodeIndex,
@@ -24,12 +25,12 @@ impl TaskGraph {
         }
     }
 
-    pub fn new(app: &App) -> Self {
+    pub fn new(app: &HashMap<Uuid, Task>) -> Self {
         let mut graph = Graph::<Option<Uuid>, ()>::new();
         let mut node_map: HashMap<Uuid, NodeIndex> = HashMap::new();
         let root = graph.add_node(None);
 
-        for (uuid, task) in app.tasks.iter() {
+        for (uuid, task) in app.iter() {
             let task_index = *node_map.entry(*uuid).or_insert_with(|| {
                 graph.add_node(Some(*uuid))
             });
@@ -51,7 +52,7 @@ impl TaskGraph {
         }
     }
 
-    pub fn get_tasks<'b>(&'b self, app: &'b App, node: NodeIndex, separate: bool) -> Vec<RowEntry> {
+    pub fn get_tasks<'b>(&'b self, tasks: &'b HashMap<Uuid, Task>, node: NodeIndex, separate: bool) -> Vec<RowEntry> {
         let neighbors: Vec<_> = self.graph.neighbors_directed(node, Direction::Outgoing).collect();
 
         // let mut tasks = vec![];
@@ -59,16 +60,15 @@ impl TaskGraph {
 
         for n in neighbors {
             let task_uuid = self.graph.node_weight(n).unwrap();
-            let task = &app.tasks[&task_uuid.unwrap()];
+            let task = &tasks[&task_uuid.unwrap()];
             status_map.get_mut(&task.status).unwrap().push(
                 RowEntry::Task(TaskRow {
                     task,
                     sub_tasks: {
-                        let mut tasks = self.get_tasks(app, n, false);
+                        let mut tasks = self.get_tasks(tasks, n, false);
                         Self::sort_rows(&mut tasks);
                         tasks
                     },
-                    folded: false
                 }));
         };
         let mut sorted_statuses = TaskStatus::iter().collect::<Vec<_>>();
@@ -82,7 +82,6 @@ impl TaskGraph {
                     sub_tasks: entries,
                     text,
                     sort_by: sorted_statuses.iter().position(|s| s == &status).unwrap() as i8,
-                    folded: status == TaskStatus::Deleted
                 })
             }).collect()
         } else {
@@ -110,9 +109,9 @@ impl TaskGraph {
         });
     }
 
-    pub fn get_root<'b>(&'b self, app: &'b App) -> RootRow {
+    pub fn get_root<'b>(&'b self, tasks: &'b HashMap<Uuid, Task>) -> RootRow {
         RootRow {
-            sub_tasks: self.get_tasks(app, self.root, true)
+            sub_tasks: self.get_tasks(tasks, self.root, true)
         }
     }
 
