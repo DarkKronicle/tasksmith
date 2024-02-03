@@ -126,8 +126,7 @@ fn get_widths(widths: &Vec<Constraint>, columns: &Vec<TableColumn>, max_width: u
     let rects = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(widths)
-        // We subtract two here since we want to reserve one row
-        .split(Rect::new(0, 0, max_width - 2, 1));
+        .split(Rect::new(0, 0, max_width, 1));
     let mut column_iter = columns.iter();
     rects.iter().map(|c| (*column_iter.next().unwrap(), c.x, c.width)).collect()
 }

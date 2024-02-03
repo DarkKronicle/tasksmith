@@ -2,15 +2,15 @@ use std::{cmp::max, collections::{HashMap}};
 
 use crate::{app::App, data::{Task, TaskStatus}};
 use petgraph::{graph::{NodeIndex}, Direction, Graph};
-use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style, Styled}, text::{Line, Span, Text}};
+use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
 use uuid::Uuid;
 use strum::IntoEnumIterator;
 
 use super::{style::SharedTheme, task::{TableColumn, TaskWidgetState}};
 
 
-const FOLD_OPEN: &str = "";
-const FOLD_CLOSE: &str = "";
+const FOLD_OPEN: &str = " ";
+const FOLD_CLOSE: &str = " ";
 
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ pub struct RootRow<'a> {
 #[derive(Debug)]
 pub struct TextRow<'a> {
     pub sub_tasks: Vec<RowEntry<'a>>,
-    pub text: Text<'a>,
+    pub text: Span<'a>,
     pub sort_by: i8,
     pub folded: bool,
 }
@@ -42,7 +42,7 @@ pub fn render_row(
     depth: u16, 
     theme: SharedTheme, 
     widths: &Vec<(TableColumn, u16, u16)>
-    ) -> u16 {
+) -> u16 {
     match row {
         RowEntry::Task(t) => {
             t.render(area, buf, state, y, depth, theme.clone(), widths)
@@ -77,20 +77,24 @@ impl<'a> TextRow<'a> {
             1,
         );
         let mut y_max = 0;
-        let fold_text: Span = if self.folded {
-            FOLD_CLOSE.into()
-        } else {
-            FOLD_OPEN.into()
-        };
-        let carrot_text: Text = fold_text.style(theme.fold()).into();
-        for line in &carrot_text {
-            buf.set_line(row_area.x, row_area.y, line, row_area.width);
+        let mut text_parts = vec![];
+        if self.sub_tasks.len() > 0 {
+            // Are there items to actually fold?
+            let fold_text: Span = if self.folded {
+                FOLD_CLOSE.into()
+            } else {
+                FOLD_OPEN.into()
+            };
+            text_parts.push(fold_text.style(theme.fold()));
         }
-        for line in &self.text {
+        text_parts.push(self.text.clone().into());
+
+        let text: Text = Line::from(text_parts).into();
+        for line in &text {
             if y + y_max >= area.height {
                 return y_max
             }
-            buf.set_line(2 + row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
+            buf.set_line(row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
             y_max += 1;
         }
         if !self.folded {
@@ -98,7 +102,7 @@ impl<'a> TextRow<'a> {
                 if y + y_max >= area.height {
                     return y_max
                 }
-                y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+                y_max += render_row(task, area, buf, state, y + y_max, depth, theme.clone(), widths);
             }
         }
         y_max
@@ -129,15 +133,25 @@ impl<'a> TaskRow<'a> {
             match column {
                 TableColumn::Description => {
                     let mut y_offset = 0;
-                    let line: Line = Line::from(vec![
+                    let mut lines = vec![];
+                    if self.sub_tasks.len() > 0 {
+                        // Are there items to actually fold?
+                        let fold_text: Span = if self.folded {
+                            FOLD_CLOSE.into()
+                        } else {
+                            FOLD_OPEN.into()
+                        };
+                        lines.push(fold_text.style(theme.fold()));
+                    }
+                    lines.push(
                         Span::styled(&self.task.description, theme.text()),
-                    ]);
-                    let text: Text = line.into();
+                    );
+                    let text: Text = Line::from(lines).into();
                     for line in &text.lines {
                         if y + y_offset >= area.height {
                             return max(y_max, y_offset);
                         }
-                        buf.set_line(2 + row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
+                        buf.set_line(row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
                         y_offset += 1;
                     };
                     y_max = max(y_offset, y_max);
@@ -176,11 +190,12 @@ impl<'a> TaskRow<'a> {
                     let span: Span = Span::styled(sequence, style);
                     let text: Text = span.into();
                     let mut y_offset = 0;
+                    let x_offset = (3 - sequence.chars().count()) as u16;
                     for line in &text.lines {
                         if y + y_offset >= area.height {
                             return max(y_max, y_offset);
                         }
-                        buf.set_line(row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
+                        buf.set_line(row_area.x + x_offset + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
                         y_offset += 1;
                     };
                     y_max = max(y_offset, y_max);
@@ -276,7 +291,7 @@ impl TaskGraph {
         let mut rows: Vec<RowEntry> = if separate {
             status_map.into_iter().map(|(status, mut entries)| {
                 let span: Span = status.to_string().into();
-                let text: Text = span.style(Style::default().fg(Color::Green)).into();
+                let text = span.style(Style::default().fg(Color::Green));
                 Self::sort_rows(&mut entries);
                 RowEntry::Text(TextRow {
                     sub_tasks: entries,
