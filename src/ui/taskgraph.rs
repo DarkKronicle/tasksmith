@@ -86,13 +86,13 @@ impl TaskGraph {
                 })
             }).collect()
         } else {
-            status_map.into_iter().map(|(_, entries)| entries).flatten().collect()
+            status_map.into_values().flatten().collect()
         };
         Self::sort_rows(&mut rows);
         rows
     }
 
-    pub fn sort_rows(rows: &mut Vec<RowEntry>) {
+    pub fn sort_rows(rows: &mut [RowEntry]) {
         rows.sort_by(|a, b| {
             if let RowEntry::Task(a) = a {
                 if let RowEntry::Task(b) = b {
@@ -106,7 +106,7 @@ impl TaskGraph {
                     return a.sort_by.cmp(&b.sort_by);
                 }
             }
-            return std::cmp::Ordering::Equal;
+            std::cmp::Ordering::Equal
         });
     }
 

@@ -15,23 +15,19 @@ pub fn render_row(
     area: Rect, 
     buf: &mut Buffer, 
     state: &mut TaskWidgetState, 
-    y: u16, 
-    depth: u16, 
-    theme: SharedTheme, 
-    widths: &Vec<(TableColumn, u16, u16)>,
-    index: usize,
+    context: RenderContext
 ) -> (usize, u16) {
     match row {
         RowEntry::Task(t) => {
-            let (idx, offset) = t.render(area, buf, state, y, depth, theme.clone(), widths, index);
+            let (idx, offset) = t.render(area, buf, state, context);
             (idx, offset)
         },
         RowEntry::Text(t) => {
-            let (idx, offset) = t.render(area, buf, state, y, depth, theme.clone(), widths, index);
+            let (idx, offset) = t.render(area, buf, state, context);
             (idx, offset)
         },
         _ => {
-            (index, y)
+            (context.index, context.y)
         }
     }
 }
@@ -53,7 +49,7 @@ pub enum RowEntry<'a> {
 
 impl<'a> RowEntry<'a> {
 
-    pub fn sub_tasks(self: &Self) -> &Vec<RowEntry<'a>> {
+    pub fn sub_tasks(&self) -> &Vec<RowEntry<'a>> {
         match self {
             Self::Root(r) => &r.sub_tasks,
             Self::Text(r) => &r.sub_tasks,
@@ -61,7 +57,7 @@ impl<'a> RowEntry<'a> {
         }
     }
 
-    pub fn folded(self: &Self) -> bool {
+    pub fn folded(&self) -> bool {
         match self {
             Self::Root(_) => false,
             Self::Task(r) => r.folded,
@@ -69,14 +65,14 @@ impl<'a> RowEntry<'a> {
         }
     }
     
-    pub fn len(self: &Self) -> usize {
+    pub fn len(&self) -> usize {
         let count: usize = self.sub_tasks().iter().map(|t| t.len()).sum();
         // Got to count this one
         count + 1
     }
 
-    pub fn get(self: &Self, index: usize) -> Option<&RowEntry<'a>> {
-        if index <= 0 {
+    pub fn get(&self, index: usize) -> Option<&RowEntry<'a>> {
+        if index == 0 {
             return Some(self)
         }
         let mut idx = 0;
@@ -91,4 +87,13 @@ impl<'a> RowEntry<'a> {
         None
     }
 
+}
+
+
+pub struct RenderContext<'a> {
+    pub y: u16, 
+    pub depth: u16, 
+    pub theme: SharedTheme, 
+    pub widths: &'a Vec<(TableColumn, u16, u16)>,
+    pub index: usize,
 }

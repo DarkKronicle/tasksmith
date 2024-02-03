@@ -1,7 +1,7 @@
-use super::RowEntry;
+use super::{RenderContext, RowEntry};
 use ratatui::{buffer::Buffer, layout::Rect, text::{Line, Span, Text}};
 
-use crate::ui::{style::SharedTheme, tasklist::{TableColumn, TaskWidgetState}};
+use crate::ui::tasklist::TaskWidgetState;
 
 use super::{render_row, FOLD_CLOSE, FOLD_OPEN};
 
@@ -23,61 +23,63 @@ impl<'a> TextRow<'a> {
         area: Rect, 
         buf: &mut Buffer, 
         state: &mut TaskWidgetState, 
-        y: u16, 
-        depth: u16, 
-        theme: SharedTheme, 
-        widths: &Vec<(TableColumn, u16, u16)>,
-        index: usize,
+        context: RenderContext,
     ) -> (usize, u16) {
-        let mut idx = index + 1;
-        if self.sub_tasks.len() == 0 {
+        let mut idx = context.index + 1;
+        if self.sub_tasks.is_empty() {
             return (idx, 0);
         }
         let row_area = Rect::new(
             area.x,
-            area.y + (y as u16),
+            area.y + context.y,
             area.width,
             1,
         );
         let mut y_max = 0;
         let mut text_parts = vec![];
-        if self.sub_tasks.len() > 0 {
+        if !self.sub_tasks.is_empty() {
             // Are there items to actually fold?
             let fold_text: Span = if self.folded {
                 FOLD_CLOSE.into()
             } else {
                 FOLD_OPEN.into()
             };
-            text_parts.push(fold_text.style(theme.fold()));
+            text_parts.push(fold_text.style(context.theme.fold()));
         }
-        text_parts.push(self.text.clone().into());
+        text_parts.push(self.text.clone());
 
         let text: Text = Line::from(text_parts).into();
         for line in &text {
-            if y + y_max >= area.height {
+            if context.y + y_max >= area.height {
                 return (idx, y_max)
             }
-            buf.set_line(row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
+            buf.set_line(row_area.x + (context.depth * 2), row_area.y + y_max, line, row_area.width);
             y_max += 1;
         }
         if !self.folded {
             for task in &self.sub_tasks {
-                if y + y_max >= area.height {
+                if context.y + y_max >= area.height {
                     return (idx, y_max)
                 }
-                let (index, y_offset) = render_row(task, area, buf, state, y + y_max, depth, theme.clone(), widths, idx);
+                let (index, y_offset) = render_row(task, area, buf, state, RenderContext {
+                    y: context.y + y_max,
+                    depth: context.depth + 1,
+                    theme: context.theme.clone(),
+                    widths: context.widths,
+                    index: idx,
+                });
                 idx = index;
                 y_max += y_offset;
             }
         } else {
-        
+            idx = context.index + self.len() - 1;
         }
         (idx, y_max)
     }
 
-    pub fn len(self: &Self) -> usize {
+    pub fn len(&self) -> usize {
         let count: usize = self.sub_tasks.iter().map(|t| t.len()).sum();
-        return count + 1;
+        count + 1
     }
 }
 

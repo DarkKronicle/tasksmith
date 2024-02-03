@@ -46,7 +46,7 @@ pub struct TaskWidgetState {
 
 impl TaskWidgetState {
 
-    pub fn cursor(self: &mut Self, amount: isize) {
+    pub fn cursor(&mut self, amount: isize) {
         if let Some(c) = self.cursor {
             let new_c: isize = (c as isize) + amount;
             if new_c < 0 {
@@ -142,7 +142,7 @@ pub enum TableColumn {
 }
 
 
-fn get_widths(widths: &Vec<Constraint>, columns: &Vec<TableColumn>, max_width: u16) -> Vec<(TableColumn, u16, u16)> {
+fn get_widths(widths: &Vec<Constraint>, columns: &[TableColumn], max_width: u16) -> Vec<(TableColumn, u16, u16)> {
     let rects = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(widths)
@@ -168,7 +168,13 @@ impl TaskListWidget<'_> {
             if state.cursor.is_none() {
                 state.cursor = Some(i);
             }
-            let (index, y_off) = super::row::render_row(row, area, buf, state, y_offset, 0, self.theme.clone(), &widths, idx);
+            let (index, y_off) = super::row::render_row(row, area, buf, state, super::row::RenderContext {
+                y: y_offset,
+                depth: 0,
+                theme: self.theme.clone(),
+                widths: &widths,
+                index: idx,
+            });
             y_offset += y_off;
             idx = index;
             if y_offset >= area.height {
