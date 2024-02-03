@@ -13,7 +13,7 @@ use ratatui::{
     }
 };
 
-use crate::{app::App, data::Task};
+use crate::app::App;
 
 use super::{row::RootRow, style::SharedTheme, taskgraph::TaskGraph};
 
@@ -39,11 +39,31 @@ pub struct TaskListWidget<'a> {
 
 }
 
-#[derive(Default)]
-pub struct TaskWidgetState<'a> {
-    pub selected: Option<&'a Task>,
+#[derive(Default, Clone, Debug)]
+pub struct TaskWidgetState {
+    pub cursor: Option<usize>,
 }
 
+impl TaskWidgetState {
+
+    pub fn cursor(self: &mut Self, amount: isize) {
+        if let Some(c) = self.cursor {
+            let new_c: isize = (c as isize) + amount;
+            if new_c < 0 {
+                self.cursor = Some(0);
+            } else {
+                self.cursor = Some(new_c as usize);
+            }
+            return;
+        }
+        if amount > 0 {
+            self.cursor = Some(amount as usize);
+        } else {
+            self.cursor = Some(0);
+        }
+    }
+
+}
 
 impl<'a> TaskListWidget<'a> {
 
@@ -86,7 +106,7 @@ impl Widget for &TaskListWidget<'_> {
 
 
 impl<'a> StatefulWidget for TaskListWidget<'a> {
-    type State = TaskWidgetState<'a>;
+    type State = TaskWidgetState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         StatefulWidget::render(&self, area, buf, state);
@@ -96,7 +116,7 @@ impl<'a> StatefulWidget for TaskListWidget<'a> {
 
 
 impl<'a> StatefulWidget for &TaskListWidget<'a> {
-    type State = TaskWidgetState<'a>;
+    type State = TaskWidgetState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         buf.set_style(area, self.style);
@@ -142,9 +162,15 @@ impl TaskListWidget<'_> {
 
         let columns = vec![TableColumn::State, TableColumn::Description];
         let widths = get_widths(&self.widths, &columns, area.width);
+        let mut idx = 0;
 
-        for (_i, row) in self.root.sub_tasks.iter().enumerate() {
-            y_offset += super::row::render_row(row, area, buf, state, y_offset, 0, self.theme.clone(), &widths);
+        for (i, row) in self.root.sub_tasks.iter().enumerate() {
+            if state.cursor.is_none() {
+                state.cursor = Some(i);
+            }
+            let (index, y_off) = super::row::render_row(row, area, buf, state, y_offset, 0, self.theme.clone(), &widths, idx);
+            y_offset += y_off;
+            idx = index;
             if y_offset >= area.height {
                 break;
             }

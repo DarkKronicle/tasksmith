@@ -26,14 +26,16 @@ impl<'a> TextRow<'a> {
         y: u16, 
         depth: u16, 
         theme: SharedTheme, 
-        widths: &Vec<(TableColumn, u16, u16)>
-    ) -> u16 {
+        widths: &Vec<(TableColumn, u16, u16)>,
+        index: usize,
+    ) -> (usize, u16) {
+        let mut idx = index + 1;
         if self.sub_tasks.len() == 0 {
-            return 0;
+            return (idx, 0);
         }
         let row_area = Rect::new(
             area.x,
-            area.y + y,
+            area.y + (y as u16),
             area.width,
             1,
         );
@@ -53,7 +55,7 @@ impl<'a> TextRow<'a> {
         let text: Text = Line::from(text_parts).into();
         for line in &text {
             if y + y_max >= area.height {
-                return y_max
+                return (idx, y_max)
             }
             buf.set_line(row_area.x + (depth * 2), row_area.y + y_max as u16, line, row_area.width);
             y_max += 1;
@@ -61,12 +63,21 @@ impl<'a> TextRow<'a> {
         if !self.folded {
             for task in &self.sub_tasks {
                 if y + y_max >= area.height {
-                    return y_max
+                    return (idx, y_max)
                 }
-                y_max += render_row(task, area, buf, state, y + y_max, depth, theme.clone(), widths);
+                let (index, y_offset) = render_row(task, area, buf, state, y + y_max, depth, theme.clone(), widths, idx);
+                idx = index;
+                y_max += y_offset;
             }
+        } else {
+        
         }
-        y_max
+        (idx, y_max)
+    }
+
+    pub fn len(self: &Self) -> usize {
+        let count: usize = self.sub_tasks.iter().map(|t| t.len()).sum();
+        return count + 1;
     }
 }
 

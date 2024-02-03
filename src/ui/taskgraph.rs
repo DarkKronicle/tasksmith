@@ -1,12 +1,12 @@
-use std::{cmp::max, collections::{HashMap}};
+use std::collections::HashMap;
 
-use crate::{app::App, data::{Task, TaskStatus}};
+use crate::{app::App, data::TaskStatus};
 use petgraph::{graph::{NodeIndex}, Direction, Graph};
-use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
+use ratatui::{style::{Color, Style}, text::Span};
 use uuid::Uuid;
 use strum::IntoEnumIterator;
 
-use super::{row::{task::TaskRow, text::TextRow, RootRow, RowEntry}, style::SharedTheme, tasklist::{TableColumn, TaskWidgetState}};
+use super::row::{task::TaskRow, text::TextRow, RootRow, RowEntry};
 
 pub struct TaskGraph {
     graph: Graph<Option<Uuid>, ()>,

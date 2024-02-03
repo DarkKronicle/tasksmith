@@ -3,13 +3,14 @@ use std::{collections::HashMap};
 use color_eyre::eyre::Result;
 use uuid::Uuid;
 
-use crate::{data::{get_tasks, Task}, ui::{style::SharedTheme, taskgraph::TaskGraph}};
+use crate::{data::{get_tasks, Task}, ui::{style::SharedTheme, taskgraph::TaskGraph, tasklist::TaskWidgetState}};
 
 pub struct App {
     pub should_quit: bool,
     pub task_graph: TaskGraph,
     pub tasks: HashMap<Uuid, Task>,
     pub theme: SharedTheme,
+    pub tasklist_state: TaskWidgetState,
 }
 
 impl App {
@@ -20,6 +21,7 @@ impl App {
             task_graph: TaskGraph::empty(),
             tasks: HashMap::default(),
             theme: SharedTheme::default(),
+            tasklist_state: TaskWidgetState::default(),
         })
     }
 

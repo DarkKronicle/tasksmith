@@ -16,7 +16,9 @@ pub fn draw(f: &mut Frame, app: &mut App) -> Result<()> {
         Block::default()
         .style(app.theme.border())
     );
-    f.render_widget(task_widget, chunks[1]);
+    let mut state = app.tasklist_state.clone();
+    f.render_stateful_widget(task_widget, chunks[1], &mut state);
+    app.tasklist_state = state;
     
     let filter_widget = Block::default()
         .borders(Borders::RIGHT)

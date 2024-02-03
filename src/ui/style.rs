@@ -45,6 +45,9 @@ pub struct Theme {
 
     #[serde(with = "color_parser")]
     fold: Color,
+
+    #[serde(with = "color_parser")]
+    cursor: Color,
 }
 
 impl Theme {
@@ -60,6 +63,10 @@ impl Theme {
     pub fn fold(&self) -> Style {
         Style::default().fg(self.fold)
     }
+
+    pub fn cursor(&self) -> Style {
+        Style::default().bg(self.cursor)
+    }
     
 }
 
@@ -69,6 +76,7 @@ impl Default for Theme {
             border: Color::Rgb(49, 50, 68),
             text: Color::Rgb(205, 214, 244),
             fold: Color::Rgb(205, 214, 244),
+            cursor: Color::Rgb(69, 71, 90),
         }
     }
 }

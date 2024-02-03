@@ -25,8 +25,9 @@ impl<'a> TaskRow<'a> {
         y: u16, 
         depth: u16, 
         theme: SharedTheme, 
-        widths: &Vec<(TableColumn, u16, u16)>
-    ) -> u16 {
+        widths: &Vec<(TableColumn, u16, u16)>,
+        index: usize,
+    ) -> (usize, u16) {
         let row_area = Rect::new(
             area.x,
             area.y + y,
@@ -34,6 +35,12 @@ impl<'a> TaskRow<'a> {
             1,
         );
         let mut y_max = 0;
+        let mut idx = index + 1;
+        if let Some(cursor_index) = state.cursor {
+            if cursor_index == idx {
+                buf.set_style(row_area, theme.cursor());
+            }
+        }
         for (column, c_x, _width) in widths {
             match column {
                 TableColumn::Description => {
@@ -54,7 +61,7 @@ impl<'a> TaskRow<'a> {
                     let text: Text = Line::from(lines).into();
                     for line in &text.lines {
                         if y + y_offset >= area.height {
-                            return max(y_max, y_offset);
+                            return (idx, max(y_max, y_offset));
                         }
                         buf.set_line(row_area.x + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
                         y_offset += 1;
@@ -98,7 +105,7 @@ impl<'a> TaskRow<'a> {
                     let x_offset = (3 - sequence.chars().count()) as u16;
                     for line in &text.lines {
                         if y + y_offset >= area.height {
-                            return max(y_max, y_offset);
+                            return (idx, max(y_max, y_offset));
                         }
                         buf.set_line(row_area.x + x_offset + c_x + (depth * 2), row_area.y + y_offset as u16, line, row_area.width);
                         y_offset += 1;
@@ -110,11 +117,21 @@ impl<'a> TaskRow<'a> {
         if !self.folded {
             for task in &self.sub_tasks {
                 if y + y_max >= area.height {
-                    return y_max
+                    return (idx, y_max)
                 }
-                y_max += render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths);
+                let (index, y_offset) = render_row(task, area, buf, state, y + y_max, depth + 1, theme.clone(), widths, idx);
+                y_max += y_offset;
+                idx = index;
             }
+        } else {
+            idx = index + self.len() - 1;
         }
-        y_max
+        (idx, y_max)
     }
+
+    pub fn len(self: &Self) -> usize {
+        let count: usize = self.sub_tasks.iter().map(|t| t.len()).sum();
+        return count + 1;
+    }
+
 }
