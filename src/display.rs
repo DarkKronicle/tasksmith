@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::ui::task::TaskWidget;
+use crate::ui::tasklist::TaskListWidget;
 
 use color_eyre::Result;
 use ratatui::layout::{Constraint, Direction, Layout};
@@ -12,7 +12,7 @@ pub fn draw(f: &mut Frame, app: &mut App) -> Result<()> {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
         .split(f.size());
-    let task_widget = TaskWidget::new(&app.task_graph, app).block(
+    let task_widget = TaskListWidget::new(&app.task_graph, app).block(
         Block::default()
         .style(app.theme.border())
     );

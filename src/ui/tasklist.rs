@@ -15,7 +15,7 @@ use ratatui::{
 
 use crate::{app::App, data::Task};
 
-use super::{style::SharedTheme, tree::{render_row, RootRow, RowEntry, TaskGraph}};
+use super::{row::RootRow, style::SharedTheme, taskgraph::TaskGraph};
 
 // Task widget will be able to do the following:
 // - render tasks in a pretty way (colors)
@@ -25,7 +25,7 @@ use super::{style::SharedTheme, tree::{render_row, RootRow, RowEntry, TaskGraph}
 //
 // this full class is based heavily on https://github.com/ratatui-org/ratatui/blob/main/src/widgets/table/table.rs
 #[derive(Debug)]
-pub struct TaskWidget<'a> {
+pub struct TaskListWidget<'a> {
 
     widths: Vec<Constraint>,
 
@@ -45,10 +45,10 @@ pub struct TaskWidgetState<'a> {
 }
 
 
-impl<'a> TaskWidget<'a> {
+impl<'a> TaskListWidget<'a> {
 
-    pub fn new(tasks: &'a TaskGraph, app: &'a App) -> TaskWidget<'a> {
-        TaskWidget {
+    pub fn new(tasks: &'a TaskGraph, app: &'a App) -> TaskListWidget<'a> {
+        TaskListWidget {
             style: Default::default(),
             widths: vec![Constraint::Length(4), Constraint::Fill(40)],
             block: Default::default(),
@@ -66,7 +66,7 @@ impl<'a> TaskWidget<'a> {
 }
 
 
-impl Widget for TaskWidget<'_> {
+impl Widget for TaskListWidget<'_> {
 
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TaskWidgetState::default();
@@ -75,7 +75,7 @@ impl Widget for TaskWidget<'_> {
 
 }
 
-impl Widget for &TaskWidget<'_> {
+impl Widget for &TaskListWidget<'_> {
 
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TaskWidgetState::default();
@@ -85,7 +85,7 @@ impl Widget for &TaskWidget<'_> {
 }
 
 
-impl<'a> StatefulWidget for TaskWidget<'a> {
+impl<'a> StatefulWidget for TaskListWidget<'a> {
     type State = TaskWidgetState<'a>;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -95,7 +95,7 @@ impl<'a> StatefulWidget for TaskWidget<'a> {
 }
 
 
-impl<'a> StatefulWidget for &TaskWidget<'a> {
+impl<'a> StatefulWidget for &TaskListWidget<'a> {
     type State = TaskWidgetState<'a>;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
@@ -131,7 +131,7 @@ fn get_widths(widths: &Vec<Constraint>, columns: &Vec<TableColumn>, max_width: u
     rects.iter().map(|c| (*column_iter.next().unwrap(), c.x, c.width)).collect()
 }
 
-impl TaskWidget<'_> {
+impl TaskListWidget<'_> {
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer, state: &mut TaskWidgetState) {
         if self.root.sub_tasks.is_empty() {
@@ -144,7 +144,7 @@ impl TaskWidget<'_> {
         let widths = get_widths(&self.widths, &columns, area.width);
 
         for (_i, row) in self.root.sub_tasks.iter().enumerate() {
-            y_offset += render_row(row, area, buf, state, y_offset, 0, self.theme.clone(), &widths);
+            y_offset += super::row::render_row(row, area, buf, state, y_offset, 0, self.theme.clone(), &widths);
             if y_offset >= area.height {
                 break;
             }

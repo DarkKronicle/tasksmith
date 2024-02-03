@@ -3,7 +3,7 @@ use std::{collections::HashMap};
 use color_eyre::eyre::Result;
 use uuid::Uuid;
 
-use crate::{data::{get_tasks, Task}, ui::{style::SharedTheme, tree::TaskGraph}};
+use crate::{data::{get_tasks, Task}, ui::{style::SharedTheme, taskgraph::TaskGraph}};
 
 pub struct App {
     pub should_quit: bool,
