@@ -30,7 +30,6 @@ mod date_parser {
         let s: String = String::deserialize(deserializer)?;
         NaiveDateTime::parse_from_str(&s, FORMAT).map_err(serde::de::Error::custom)
     }
-
 }
 
 mod optional_date_parser {
@@ -228,7 +227,13 @@ pub fn get_tasks(filter: Option<&str>) -> Result<HashMap<Uuid, Task>> {
         Command::new("task").arg("export").output()?
     };
     let contents = String::from_utf8_lossy(&output.stdout);
-    let json: Value = serde_json::from_str(&contents)?;
+
+    // TODO: Taskwarrior doesn't guard against invalid escape sequences
+    // `control character (\u0000-\u001F) found while parsing a string`
+    // serde doesn't support invalid stuff, https://github.com/serde-rs/json/issues/616
+    // may need to use a fork eventually?
+    let s: String = contents.chars().filter(|c| !c.is_control()).collect();
+    let json: Value = serde_json::from_str(&s)?;
     let result = from_json(json)?;
     Ok(result)
 }

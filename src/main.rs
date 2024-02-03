@@ -35,9 +35,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // let mut tasks = data::get_tasks(Some("+PENDING"))?;
-    // tasks.sort_by_urgency();
-    // display::display_table(tasks)?;
     tui.exit()?;
     Ok(())
 }
