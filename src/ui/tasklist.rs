@@ -35,7 +35,7 @@ pub struct TaskListWidget<'a> {
 
     block: Option<Block<'a>>,
 
-    root: &'a RootRow<'a>,
+    root: &'a RowEntry<'a>,
 
     theme: SharedTheme,
 
@@ -49,40 +49,41 @@ pub struct TaskWidgetState {
 
 impl TaskWidgetState {
 
-    pub fn cursor(&mut self, amount: isize) {
+    pub fn cursor(self, amount: isize) -> Self {
+        let new_cursor;
         if let Some(c) = self.cursor {
             let new_c: isize = (c as isize) + amount;
             if new_c < 0 {
-                self.cursor = Some(0);
+                new_cursor = Some(0);
             } else {
-                self.cursor = Some(new_c as usize);
+                new_cursor = Some(new_c as usize);
             }
-            return;
-        }
-        if amount > 0 {
-            self.cursor = Some(amount as usize);
+        } else if amount > 0 {
+            new_cursor = Some(amount as usize);
         } else {
-            self.cursor = Some(0);
-        }
+            new_cursor = Some(0);
+        };
+        TaskWidgetState { cursor: new_cursor, ..self }
     }
 
-    pub fn fold(&mut self, root: &RowEntry) {
+    pub fn fold_entry(self, remove: bool) -> Self {
+        let mut folded = self.folded;
         if let Some(c) = self.cursor {
-            if !self.folded.remove(&c) {
-                if let Some(row) = root.get(c){ 
-                    if row.has_children() {
-                        self.folded.insert(c);
-                    }
-                }
+            if remove {
+                folded.remove(&c);
+            } else {
+                folded.insert(c);
             }
         }
+        TaskWidgetState { folded, ..self }
+        
     }
 
 }
 
 impl<'a> TaskListWidget<'a> {
 
-    pub fn new(root: &'a RootRow, app: &'a App) -> TaskListWidget<'a> {
+    pub fn new(root: &'a RowEntry, app: &'a App) -> TaskListWidget<'a> {
         TaskListWidget {
             style: Default::default(),
             widths: vec![Constraint::Length(4), Constraint::Fill(40)],
@@ -169,7 +170,7 @@ fn get_widths(widths: &Vec<Constraint>, columns: &[TableColumn], max_width: u16)
 impl TaskListWidget<'_> {
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer, state: &mut TaskWidgetState) {
-        if self.root.sub_tasks.is_empty() {
+        if self.root.sub_tasks().is_empty() {
             return;
         }
 
@@ -179,7 +180,7 @@ impl TaskListWidget<'_> {
         let widths = get_widths(&self.widths, &columns, area.width);
         let mut idx = 0;
 
-        for (i, row) in self.root.sub_tasks.iter().enumerate() {
+        for (i, row) in self.root.sub_tasks().iter().enumerate() {
             if state.cursor.is_none() {
                 state.cursor = Some(i);
             }

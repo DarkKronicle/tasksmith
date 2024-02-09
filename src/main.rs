@@ -2,6 +2,7 @@ use color_eyre::eyre::Result;
 use event::{Event, EventHandler};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use tui::Tui;
+use ui::taskgraph::TaskGraph;
 
 mod display;
 mod data;
@@ -16,8 +17,9 @@ fn main() -> Result<()> {
     color_eyre::install()?;
 
     let mut app = app::App::new()?;
-    app.refresh_tasks()?;
-    // app.update_list_root();
+    let tasks = data::get_tasks(None)?;
+    let graph = TaskGraph::new(&tasks);
+    app = app.refresh_tasks(&graph, &tasks)?;
 
     let backend = CrosstermBackend::new(std::io::stderr());
     let events = EventHandler::new(250);
@@ -30,7 +32,9 @@ fn main() -> Result<()> {
 
         match tui.events.next()? {
             Event::Tick => {},
-            Event::Key(key) => update::on_key(&mut app, key),
+            Event::Key(key) => {
+                app = update::on_key(app, key)
+            },
             Event::Mouse(_) => {},
             Event::Resize(_, _) => {},
         }

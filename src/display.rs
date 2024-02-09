@@ -12,7 +12,7 @@ pub fn draw(f: &mut Frame, app: &mut App) -> Result<()> {
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(10), Constraint::Percentage(90)])
         .split(f.size());
-    let root = app.task_graph.get_root(&app.tasks);
+    let root = &app.list_root;
     let task_widget = TaskListWidget::new(&root, &app).block(
         Block::default()
         .style(app.theme.border())

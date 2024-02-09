@@ -109,9 +109,10 @@ impl TaskGraph {
         });
     }
 
-    pub fn get_root<'b>(&'b self, tasks: &'b HashMap<Uuid, Task>) -> RootRow {
+    pub fn get_root<'b>(graph: &'b TaskGraph, tasks: &'b HashMap<Uuid, Task>) -> RootRow<'b> {
+        // let graph = TaskGraph::new(tasks);
         RootRow {
-            sub_tasks: self.get_tasks(tasks, self.root, true)
+            sub_tasks: graph.get_tasks(tasks, graph.root, true)
         }
     }
 
