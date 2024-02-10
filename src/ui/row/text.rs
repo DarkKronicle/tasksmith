@@ -1,27 +1,25 @@
 use super::{RenderContext, RowEntry};
 use ratatui::{buffer::Buffer, layout::Rect, text::{Line, Span, Text}};
 
-use crate::ui::tasklist::TaskWidgetState;
-
 use super::{render_row, FOLD_CLOSE, FOLD_OPEN};
 
 
 
 #[derive(Debug, Clone)]
-pub struct TextRow<'a> {
-    pub sub_tasks: Vec<RowEntry<'a>>,
-    pub text: Span<'a>,
+pub struct TextRow
+{
+    pub sub_tasks: Vec<RowEntry>,
+    pub text: String,
     pub sort_by: i8,
 }
 
 
 
-impl<'a> TextRow<'a> {
+impl TextRow {
     pub fn render(
         &self, 
         area: Rect, 
         buf: &mut Buffer, 
-        state: &mut TaskWidgetState, 
         context: RenderContext,
     ) -> (usize, u16) {
         let row_area = Rect::new(
@@ -31,17 +29,19 @@ impl<'a> TextRow<'a> {
             1,
         );
         let mut idx = context.index + 1;
-        let folded = state.folded.contains(&idx);
-        if let Some(cursor_index) = state.cursor {
-            if cursor_index == idx {
-                buf.set_style(row_area, context.theme.cursor());
-            }
-        }
+        let folded = false;
+        // let folded = state.folded.contains(&idx);
+        // if let Some(cursor_index) = state.cursor {
+        //     if cursor_index == idx {
+        //         buf.set_style(row_area, context.theme.cursor());
+        //     }
+        // }
         if self.sub_tasks.is_empty() {
             return (idx, 0);
         }
         let mut y_max = 0;
         let mut text_parts = vec![];
+        let span: Span = self.text.clone().into();
         if !self.sub_tasks.is_empty() {
             // Are there items to actually fold?
             let fold_text: Span = if folded {
@@ -51,7 +51,7 @@ impl<'a> TextRow<'a> {
             };
             text_parts.push(fold_text.style(context.theme.fold()));
         }
-        text_parts.push(self.text.clone());
+        text_parts.push(span.clone());
 
         let text: Text = Line::from(text_parts).into();
         for line in &text {
@@ -66,7 +66,7 @@ impl<'a> TextRow<'a> {
                 if context.y + y_max >= area.height {
                     return (idx, y_max)
                 }
-                let (index, y_offset) = render_row(task, area, buf, state, RenderContext {
+                let (index, y_offset) = render_row(task, area, buf, RenderContext {
                     y: context.y + y_max,
                     depth: context.depth + 1,
                     theme: context.theme.clone(),

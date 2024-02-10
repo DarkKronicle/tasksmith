@@ -1,7 +1,7 @@
 use self::{task::TaskRow, text::TextRow};
 use ratatui::{buffer::Buffer, layout::Rect};
 
-use super::{style::SharedTheme, tasklist::{TableColumn, TaskWidgetState}};
+use super::{style::SharedTheme, tasklist::TableColumn};
 
 pub mod text;
 pub mod task;
@@ -14,16 +14,15 @@ pub fn render_row(
     row: &RowEntry, 
     area: Rect, 
     buf: &mut Buffer, 
-    state: &mut TaskWidgetState, 
     context: RenderContext
 ) -> (usize, u16) {
     match row {
         RowEntry::Task(t) => {
-            let (idx, offset) = t.render(area, buf, state, context);
+            let (idx, offset) = t.render(area, buf, context);
             (idx, offset)
         },
         RowEntry::Text(t) => {
-            let (idx, offset) = t.render(area, buf, state, context);
+            let (idx, offset) = t.render(area, buf, context);
             (idx, offset)
         },
         _ => {
@@ -34,28 +33,28 @@ pub fn render_row(
 
 
 #[derive(Debug, Clone)]
-pub struct RootRow<'a> {
-    pub sub_tasks: Vec<RowEntry<'a>>,
+pub struct RootRow {
+    pub sub_tasks: Vec<RowEntry>,
 }
 
-impl Default for RootRow<'_> {
-    fn default() -> RootRow<'static> {
+impl Default for RootRow {
+    fn default() -> RootRow {
         RootRow { sub_tasks: vec![] }
     }
 }
 
 
 #[derive(Debug, Clone)]
-pub enum RowEntry<'a> {
-    Root(RootRow<'a>),
-    Text(TextRow<'a>),
-    Task(TaskRow<'a>),
+pub enum RowEntry {
+    Root(RootRow),
+    Text(TextRow),
+    Task(TaskRow),
 }
 
 
-impl<'a> RowEntry<'a> {
+impl RowEntry {
 
-    pub fn sub_tasks(&self) -> &Vec<RowEntry<'a>> {
+    pub fn sub_tasks(&self) -> &Vec<RowEntry> {
         match self {
             Self::Root(r) => &r.sub_tasks,
             Self::Text(r) => &r.sub_tasks,
@@ -73,7 +72,7 @@ impl<'a> RowEntry<'a> {
         count + 1
     }
 
-    pub fn get(&self, index: usize) -> Option<&RowEntry<'a>> {
+    pub fn get(&self, index: usize) -> Option<&RowEntry> {
         if index == 0 {
             return Some(self)
         }
@@ -89,7 +88,7 @@ impl<'a> RowEntry<'a> {
         None
     }
     
-    pub fn get_from_root(row: &'a RootRow, index: usize) -> Option<&'a RowEntry<'a>> {
+    pub fn get_from_root(row: &RootRow, index: usize) -> Option<&RowEntry> {
         if index == 0 {
             return None
         }
@@ -103,6 +102,14 @@ impl<'a> RowEntry<'a> {
             idx += len - 1;
         }
         None
+    }
+
+    pub fn add_task(&mut self, row: RowEntry) {
+        match self {
+            Self::Root(r) => r.sub_tasks.push(row),
+            Self::Text(r) => r.sub_tasks.push(row),
+            Self::Task(r) => r.sub_tasks.push(row),
+        }
     }
 
 }

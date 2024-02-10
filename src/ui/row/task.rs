@@ -2,25 +2,24 @@ use std::cmp::max;
 
 use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
 
-use crate::{data::TaskStatus, ui::tasklist::{TableColumn, TaskWidgetState}};
+use crate::{data::TaskStatus, ui::tasklist::TableColumn};
 use crate::data::Task;
 
 use super::{render_row, RenderContext, RowEntry, FOLD_CLOSE, FOLD_OPEN};
 
 #[derive(Debug, Clone)]
-pub struct TaskRow<'a> {
-    pub task: &'a Task,
-    pub sub_tasks: Vec<RowEntry<'a>>,
+pub struct TaskRow {
+    pub task: Task,
+    pub sub_tasks: Vec<RowEntry>,
 }
 
 
-impl<'a> TaskRow<'a> {
+impl TaskRow {
 
     pub fn render(
         &self, 
         area: Rect, 
         buf: &mut Buffer, 
-        state: &mut TaskWidgetState, 
         context: RenderContext,
     ) -> (usize, u16) {
         let row_area = Rect::new(
@@ -31,12 +30,13 @@ impl<'a> TaskRow<'a> {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
-        let folded = state.folded.contains(&idx);
-        if let Some(cursor_index) = state.cursor {
-            if cursor_index == idx {
-                buf.set_style(row_area, context.theme.cursor());
-            }
-        }
+        let folded = false;
+        // let folded = state.folded.contains(&idx);
+        // if let Some(cursor_index) = state.cursor {
+        //     if cursor_index == idx {
+        //         buf.set_style(row_area, context.theme.cursor());
+        //     }
+        // }
         for (column, c_x, _width) in context.widths {
             match column {
                 TableColumn::Description => {
@@ -115,7 +115,7 @@ impl<'a> TaskRow<'a> {
                 if context.y + y_max >= area.height {
                     return (idx, y_max)
                 }
-                let (index, y_offset) = render_row(task, area, buf, state, RenderContext {
+                let (index, y_offset) = render_row(task, area, buf, RenderContext {
                     y: context.y + y_max,
                     depth: context.depth + 1,
                     theme: context.theme.clone(),

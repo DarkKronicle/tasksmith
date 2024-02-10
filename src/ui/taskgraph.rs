@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{app::App, data::{Task, TaskStatus}};
+use crate::data::{Task, TaskStatus};
 use petgraph::{graph::NodeIndex, Direction, Graph};
 use ratatui::{style::{Color, Style}, text::Span};
 use uuid::Uuid;
@@ -11,7 +11,7 @@ use super::row::{task::TaskRow, text::TextRow, RootRow, RowEntry};
 #[derive(Debug, Clone)]
 pub struct TaskGraph {
     graph: Graph<Option<Uuid>, ()>,
-    root: NodeIndex,
+    pub root: NodeIndex,
 }
 
 impl TaskGraph {
@@ -25,7 +25,7 @@ impl TaskGraph {
         }
     }
 
-    pub fn new(app: &HashMap<Uuid, Task>) -> Self {
+    pub fn new<'b>(app: &'b HashMap<Uuid, Task>) -> Self {
         let mut graph = Graph::<Option<Uuid>, ()>::new();
         let mut node_map: HashMap<Uuid, NodeIndex> = HashMap::new();
         let root = graph.add_node(None);
@@ -52,7 +52,7 @@ impl TaskGraph {
         }
     }
 
-    pub fn get_tasks<'b>(&'b self, tasks: &'b HashMap<Uuid, Task>, node: NodeIndex, separate: bool) -> Vec<RowEntry> {
+    pub fn get_tasks<'b>(&self, tasks: &'b HashMap<Uuid, Task>, node: NodeIndex, separate: bool) -> Vec<RowEntry> {
         let neighbors: Vec<_> = self.graph.neighbors_directed(node, Direction::Outgoing).collect();
 
         // let mut tasks = vec![];
@@ -63,7 +63,7 @@ impl TaskGraph {
             let task = &tasks[&task_uuid.unwrap()];
             status_map.get_mut(&task.status).unwrap().push(
                 RowEntry::Task(TaskRow {
-                    task,
+                    task: task.clone(),
                     sub_tasks: {
                         let mut tasks = self.get_tasks(tasks, n, false);
                         Self::sort_rows(&mut tasks);
@@ -75,12 +75,10 @@ impl TaskGraph {
         sorted_statuses.sort();
         let mut rows: Vec<RowEntry> = if separate {
             status_map.into_iter().map(|(status, mut entries)| {
-                let span: Span = status.to_string().into();
-                let text = span.style(Style::default().fg(Color::Green));
                 Self::sort_rows(&mut entries);
                 RowEntry::Text(TextRow {
                     sub_tasks: entries,
-                    text,
+                    text: status.to_string(),
                     sort_by: sorted_statuses.iter().position(|s| s == &status).unwrap() as i8,
                 })
             }).collect()
@@ -109,10 +107,10 @@ impl TaskGraph {
         });
     }
 
-    pub fn get_root<'b>(graph: &'b TaskGraph, tasks: &'b HashMap<Uuid, Task>) -> RootRow<'b> {
+    pub fn get_root<'b>(graph: TaskGraph, tasks: &'b HashMap<Uuid, Task>) -> RootRow {
         // let graph = TaskGraph::new(tasks);
         RootRow {
-            sub_tasks: graph.get_tasks(tasks, graph.root, true)
+            sub_tasks: vec![]
         }
     }
 

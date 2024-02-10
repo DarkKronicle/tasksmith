@@ -220,12 +220,8 @@ pub fn from_json(val: Value) -> Result<HashMap<Uuid, Task>> {
     Ok(task_map)
 }
 
-pub fn get_tasks(filter: Option<&str>) -> Result<HashMap<Uuid, Task>> {
-    let output = if filter.is_some() {
-        Command::new("task").arg(filter.unwrap()).arg("export").output()?
-    } else {
-        Command::new("task").arg("export").output()?
-    };
+pub fn get_tasks() -> Result<HashMap<Uuid, Task>> {
+    let output = Command::new("task").arg("export").output()?;
     let contents = String::from_utf8_lossy(&output.stdout);
 
     // TODO: Taskwarrior doesn't guard against invalid escape sequences

@@ -1,45 +1,85 @@
+use std::{cell::RefCell, collections::HashMap, io::{self, Write}, panic, rc::Rc, sync::atomic::Ordering};
+
 use color_eyre::eyre::Result;
+use crossterm::{event::{DisableMouseCapture, EnableMouseCapture}, terminal::{self, EnterAlternateScreen, LeaveAlternateScreen}};
 use event::{Event, EventHandler};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use tui::Tui;
-use ui::taskgraph::TaskGraph;
 
-mod display;
 mod data;
+mod graph;
 mod ui;
-mod tui;
 mod app;
 mod event;
-mod update;
+mod tabs;
 
 
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let mut app = app::App::new()?;
-    let tasks = data::get_tasks(None)?;
-    let graph = TaskGraph::new(&tasks);
-    app = app.refresh_tasks(&graph, &tasks)?;
 
-    let backend = CrosstermBackend::new(std::io::stderr());
+    let mut terminal = terminal_enter(std::io::stdout())?;
+
+    run(&mut terminal);
+
+    terminal_reset()?;
+    Ok(())
+}
+
+fn run(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+) ->Result<()> {
+
     let events = EventHandler::new(250);
-    let terminal = Terminal::new(backend)?;
-    let mut tui = Tui::new(terminal, events);
-    tui.enter()?;
+    let mut app = app::App::new()?;
+    
+    {
+        while !app.should_quit.load(Ordering::Relaxed) {
+            draw(terminal, &mut app)?;
 
-    while !app.should_quit {
-        tui.draw(&mut app)?;
-
-        match tui.events.next()? {
-            Event::Tick => {},
-            Event::Key(key) => {
-                app = update::on_key(app, key)
-            },
-            Event::Mouse(_) => {},
-            Event::Resize(_, _) => {},
+            let event = events.next()?;
+            match event {
+                Event::Tick => {},
+                _ => {
+                    app.event(event)
+                },
+            }
         }
     }
+    Ok(())
+}
 
-    tui.exit()?;
+fn draw(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut app::App) -> Result<()> {
+    terminal.draw(|f| app.draw(f).expect("failed to draw"))?;
+    Ok(())
+}
+
+fn terminal_enter<W: Write>(buf: W) -> Result<Terminal<CrosstermBackend<W>>> {
+    let mut term = Terminal::new(CrosstermBackend::new(buf))?;
+    terminal::enable_raw_mode()?;
+    crossterm::execute!(
+        io::stderr(),
+        EnterAlternateScreen,
+        EnableMouseCapture,
+    )?;
+    let panic_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |panic| {
+        terminal_reset().expect("failed to reset the terminal");
+        panic_hook(panic);
+    }));
+
+    term.hide_cursor()?;
+    term.clear()?;
+
+    Ok(term)
+}
+
+
+fn terminal_reset() -> Result<()> {
+    terminal::disable_raw_mode()?;
+    crossterm::execute!(
+        io::stderr(),
+        LeaveAlternateScreen,
+        DisableMouseCapture,
+    )?;
     Ok(())
 }

@@ -1,76 +1,52 @@
-use std::collections::HashMap;
+use std::{alloc::Layout, cell::RefCell, collections::HashMap, io, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
 
 use color_eyre::eyre::Result;
+use ratatui::{backend::CrosstermBackend, Frame, Terminal};
 use uuid::Uuid;
 
-use crate::{data::{get_tasks, Task}, ui::{row::{RootRow, RowEntry}, style::SharedTheme, taskgraph::TaskGraph, tasklist::TaskWidgetState}};
+use crate::{data::{get_tasks, Task}, event::Event, tabs::list::List, ui::style::SharedTheme};
 
-#[derive(Clone, Debug)]
-pub struct App<'a> {
-    pub should_quit: bool,
-    pub list_root: RowEntry<'a>,
+#[derive(Debug)]
+pub struct App {
+    pub should_quit: AtomicBool,
     pub theme: SharedTheme,
-    pub tasklist_state: TaskWidgetState,
+    pub list: List,
+    pub tasks: HashMap<Uuid, Task>,
 }
 
-impl<'a> App<'a> {
+impl App {
 
     pub fn new() -> Result<Self> {
+        let task_map = get_tasks()?;
+        let list = List::new(task_map.clone());
         Ok(Self {
-            should_quit: false,
+            should_quit: false.into(),
             theme: SharedTheme::default(),
-            tasklist_state: TaskWidgetState::default(),
-            list_root: RowEntry::Root(RootRow::default()),
+            list,
+            tasks: task_map,
         })
     }
 
     pub fn tick(&self) {}
 
-    pub fn quit(self) -> Self {
-        App { 
-            should_quit: true, 
-            ..self
-        }
+    pub fn quit(&mut self)  {
+        self.should_quit.swap(true, Ordering::Relaxed);
     }
 
-    pub fn cursor(self, val: isize) -> Self {
-        let state = self.tasklist_state.cursor(val);
-        App { 
-            tasklist_state: state,
-            ..self
-        }
+    pub fn draw(&self, frame: &mut Frame) -> Result<()> {
+        let fsize = frame.size();
+        self.list.draw(self, frame, fsize)?;
+        Ok(())
     }
 
-    pub fn fold_entry(self) -> Self {
-        let mut remove: Option<bool> = None;
-        if let Some(c) = self.tasklist_state.cursor {
-            if !self.tasklist_state.folded.contains(&c) {
-                if let Some(row) = self.list_root.get(c){ 
-                    if row.has_children() {
-                        remove = Some(false);
-                    }
-                }
-            } else {
-                remove = Some(true);
-            }
-        };
-        let state = if let Some(rem) = remove {
-            self.tasklist_state.fold_entry(rem)
-        } else {
-            self.tasklist_state
-        };
-        App { 
-            tasklist_state: state,
-            ..self
+    pub fn event(&mut self, event: Event) {
+        match event {
+            Event::Key(k) => {
+                self.quit()
+            },
+            _ => {}
         }
+        
     }
 
-    pub fn refresh_tasks(self, graph: &'a TaskGraph, tasks: &'a HashMap<Uuid, Task>) -> Result<Self> {
-        let list_root = TaskGraph::get_root(graph, tasks);
-        Ok(App {
-            list_root: RowEntry::Root(list_root),
-            ..self
-        })
-    }
-    
 }
