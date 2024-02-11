@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, io::{self, Write}, panic, rc::Rc, sync::atomic::Ordering};
+use std::{io::{self, Write}, panic, sync::atomic::Ordering};
 
 use color_eyre::eyre::Result;
 use crossterm::{event::{DisableMouseCapture, EnableMouseCapture}, terminal::{self, EnterAlternateScreen, LeaveAlternateScreen}};
@@ -15,12 +15,8 @@ mod tabs;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-
-
     let mut terminal = terminal_enter(std::io::stdout())?;
-
-    run(&mut terminal);
-
+    run(&mut terminal)?;
     terminal_reset()?;
     Ok(())
 }

@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap};
 use color_eyre::Result;
 
 use ratatui::{layout::Rect, Frame};
 use uuid::Uuid;
 
-use crate::{app::App, data::Task, graph, ui::{row::{RootRow, RowEntry}, taskgraph::TaskGraph, tasklist::TaskListWidget}};
+use crate::{app::App, data::Task, graph, ui::{row::RowEntry, tasklist::TaskListWidget}};
 
 
 
