@@ -97,7 +97,6 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
             
             // Parent uuid
             let par = task.sub_of.expect("task went missing").clone();
-            print!(" Let:  {}", task.description);
             let row = TaskRow { task, sub_tasks: vec![] };
             
             // The parent TaskRow
@@ -124,7 +123,6 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
                 // Make a loop to traverse upwards
                 loop {
                     let current = ascend.pop_back().expect("went missing");
-                    print!(" Above:  {}", current.task.description);
                     if current.task.sub_of.is_none() {
                         rows.push(RowEntry::Task(current));
                         break;
