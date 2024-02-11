@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::{cmp::Ordering, collections::{HashMap, VecDeque}};
 
 use uuid::Uuid;
 
@@ -112,10 +112,11 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
                 // next will be another child for this task
                 rows_depth.push_back(one_up);
             } else {
+                sort_rows(&mut one_up.sub_tasks);
                 // There are no more children, so we have to start building
                 // the rows as we traverse upwards.
                 
-                // This is essentially an atomic variable, can probably be changed
+                // NOTE: This is essentially an atomic variable, can probably be changed
                 // Length will never be > 1
                 let mut ascend = VecDeque::new();
                 ascend.push_back(one_up);
@@ -134,24 +135,17 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
 
                     let mut one_up = rows_depth.pop_back().expect("went missing");
                     one_up.sub_tasks.push(RowEntry::Task(current));
-                    // if rows_depth.is_empty() {
-                    //     rows.push(RowEntry::Task(one_up));
-                    //     break;
-                    // } else 
                     if !vec.is_empty() {
                         rows_depth.push_back(one_up);
                         break;
                     } 
-                    // if rows_depth.is_empty() {
-                    //     rows.push(RowEntry::Task(one_up));
-                    //     break;
-                    // }
                     ascend.push_back(one_up);
                 }
             }
 
         }
     }
+    sort_rows(&mut rows);
     rows
     // vec![]
 }
@@ -168,7 +162,13 @@ pub fn sort_rows(rows: &mut [RowEntry]) {
         if let RowEntry::Task(a) = a {
             if let RowEntry::Task(b) = b {
                 if a.task.status == b.task.status {
-                    return b.task.urgency.partial_cmp(&a.task.urgency).expect("Invalid urgency");
+                    let cmp = b.task.urgency.partial_cmp(&a.task.urgency).expect("Invalid urgency");
+                    return match cmp {
+                        Ordering::Equal => {
+                            b.task.description.cmp(&a.task.description)
+                        },
+                        _ => cmp
+                    }
                 }
                 return a.task.status.partial_cmp(&b.task.status).expect("Invalid status");
             }
