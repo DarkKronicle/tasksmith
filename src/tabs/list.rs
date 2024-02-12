@@ -4,7 +4,7 @@ use color_eyre::Result;
 use ratatui::{layout::Rect, Frame};
 use uuid::Uuid;
 
-use crate::{app::App, data::Task, graph, ui::{row::RowEntry, tasklist::TaskListWidget}};
+use crate::{app::App, data::Task, event::Event, graph::{self, Separation}, ui::{row::RowEntry, tasklist::TaskListWidget}};
 
 
 
@@ -16,7 +16,7 @@ pub struct List {
 impl List {
 
     pub fn new(tasks: HashMap<Uuid, Task>) -> Self {
-        let root = graph::into_root(tasks);
+        let root = graph::into_root(tasks, Separation::Status);
         List {
             row: RowEntry::Root(root)
         }
@@ -26,6 +26,10 @@ impl List {
         let list_component = TaskListWidget::new(&self.row, app.theme.clone());
         list_component.render(area, frame.buffer_mut());
         Ok(())
+    }
+
+    pub fn event(&mut self, event: Event) {
+
     }
 
 }

@@ -86,5 +86,13 @@ impl TextRow {
         let count: usize = self.sub_tasks.iter().map(|t| t.len()).sum();
         count + 1
     }
+
+    pub fn new(text: String, sub_tasks: Vec<RowEntry>, sort_by: i8) -> TextRow {
+        TextRow { 
+            sub_tasks,
+            text,
+            sort_by,
+        }
+    }
 }
 

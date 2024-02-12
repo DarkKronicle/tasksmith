@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
 
 use color_eyre::eyre::Result;
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::Frame;
 use uuid::Uuid;
 
@@ -42,7 +43,17 @@ impl App {
     pub fn event(&mut self, event: Event) {
         match event {
             Event::Key(k) => {
-                self.quit()
+                match k.code {
+                    KeyCode::Char('c') => {
+                        if KeyModifiers::CONTROL == k.modifiers {
+                            self.quit()
+                        }
+                    },
+                    KeyCode::Char('q') => self.quit(),
+                    _ => {
+                        self.list.event(event);
+                    }
+                }
             },
             _ => {}
         }

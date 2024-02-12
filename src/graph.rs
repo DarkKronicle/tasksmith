@@ -1,11 +1,13 @@
 use std::{cmp::Ordering, collections::{HashMap, VecDeque}};
 
+use strum::IntoEnumIterator;
 use uuid::Uuid;
 
-use crate::{data::Task, ui::row::{task::TaskRow, RootRow, RowEntry}};
+use crate::{data::{Task, TaskStatus}, ui::row::{task::TaskRow, text::TextRow, RootRow, RowEntry}};
 
 pub enum Separation {
     None,
+    Status,
 }
 
 fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowEntry> {
@@ -150,14 +152,35 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
         }
     }
     sort_rows(&mut rows);
-    rows
+    match separation {
+        Separation::None => rows,
+        Separation::Status => {
+            let mut sorted_statuses = TaskStatus::iter().collect::<Vec<_>>();
+            sorted_statuses.sort();
+            let mut statuses: HashMap<TaskStatus, Vec<RowEntry>> = TaskStatus::iter().map(|s| (s, vec![])).collect();
+            for row in rows.into_iter() {
+                if let RowEntry::Task(ref t) = row {
+                    statuses.get_mut(&t.task.status).unwrap().push(row);
+                } else {
+                    
+                }
+            }
+            let mut new_rows: Vec<_> = statuses.into_iter().map(|(k, r)| {
+                let position = sorted_statuses.iter().position(|s| s == &k).unwrap() as i8;
+                RowEntry::Text(TextRow::new(k.to_string(), r, position))
+            }).collect();
+            sort_rows(&mut new_rows);
+            new_rows
+        }
+    }
+    // rows
     // vec![]
 }
 
 
-pub fn into_root(tasks: HashMap<Uuid, Task>) -> RootRow {
+pub fn into_root(tasks: HashMap<Uuid, Task>, separation: Separation) -> RootRow {
     RootRow {
-        sub_tasks: get_tasks(tasks, Separation::None)
+        sub_tasks: get_tasks(tasks, separation)
     }
 }
 
