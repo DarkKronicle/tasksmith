@@ -1,7 +1,7 @@
-use std::{alloc::Layout, cell::RefCell, collections::HashMap, io, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
+use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
 
 use color_eyre::eyre::Result;
-use ratatui::{backend::CrosstermBackend, Frame, Terminal};
+use ratatui::Frame;
 use uuid::Uuid;
 
 use crate::{data::{get_tasks, Task}, event::Event, tabs::list::List, ui::style::SharedTheme};

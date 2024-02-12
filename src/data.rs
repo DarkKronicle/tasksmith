@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use strum_macros::EnumIter;
 use uuid::Uuid;
 use std::{collections::HashMap, process::Command};
@@ -162,7 +162,6 @@ impl std::fmt::Display for TaskStatus {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Task {
-    pub id: u32,
 
     #[serde(with = "uuid_parser")]
     pub uuid: Uuid,
@@ -209,6 +208,31 @@ pub struct Task {
 
     #[serde(flatten)]
     pub udas: HashMap<String, Value>,
+}
+
+impl Task {
+
+    pub fn new(description: String) -> Task {
+        Task {
+            uuid: Uuid::new_v4(),           
+            description,
+            entry: Utc::now().naive_local(),
+            modified: Utc::now().naive_local(),
+            due: None,
+            start: None,
+            end: None,
+            status: TaskStatus::Pending,
+            tags: vec![],
+            urgency: 1.0,
+            project: None,
+            mask: None,
+            mask_index: None,
+            parent: None,
+            sub_of: None,
+            annotations: vec![],
+            udas: HashMap::default(),
+        }
+    }
 }
 
 pub fn from_json(val: Value) -> Result<HashMap<Uuid, Task>> {

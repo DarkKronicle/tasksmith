@@ -4,7 +4,11 @@ use uuid::Uuid;
 
 use crate::{data::Task, ui::row::{task::TaskRow, RootRow, RowEntry}};
 
-fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
+pub enum Separation {
+    None,
+}
+
+fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowEntry> {
     // Ok, so this is a doozey of an algorithm. I'll explain it here:
     //
     // First of all, why this implementation?
@@ -153,7 +157,7 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>) -> Vec<RowEntry> {
 
 pub fn into_root(tasks: HashMap<Uuid, Task>) -> RootRow {
     RootRow {
-        sub_tasks: get_tasks(tasks)
+        sub_tasks: get_tasks(tasks, Separation::None)
     }
 }
 
@@ -179,4 +183,94 @@ pub fn sort_rows(rows: &mut [RowEntry]) {
         }
         std::cmp::Ordering::Equal
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn task_from_row(row: &RowEntry) -> &TaskRow {
+        if let RowEntry::Task(t) = row {
+            return t
+        }
+        panic!("Expected task, got: {:?}", row);
+    }
+
+    #[test]
+    fn root_rows() {
+        let t1 = Task::new("t1".to_string());
+        let t2 = Task::new("t2".to_string());
+        let t3 = Task::new("t3".to_string());
+        let t4 = Task::new("t4".to_string());
+        let t5 = Task::new("t5".to_string());
+
+        let map: HashMap<_, _> = vec![t1, t2, t3, t4, t5]
+            .into_iter()
+            .map(|t| (t.uuid.clone(), t))
+            .collect();
+
+        let rows = get_tasks(map, Separation::None);
+        assert_eq!(rows.len(), 5);
+    }
+
+    #[test]
+    fn nested_children() {
+        let mut t1 = Task::new("t1".to_string());
+        let mut t2 = Task::new("t2".to_string());
+        let mut t3 = Task::new("t3".to_string());
+        let mut t4 = Task::new("t4".to_string());
+        let mut t5 = Task::new("t5".to_string());
+        let mut t6 = Task::new("t6".to_string());
+        let mut t7 = Task::new("t7".to_string());
+        let mut t8 = Task::new("t8".to_string());
+        let mut t9 = Task::new("t9".to_string());
+
+        let u1 = t1.uuid.clone();
+        let u2 = t2.uuid.clone();
+        let u3 = t3.uuid.clone();
+        let u4 = t4.uuid.clone();
+        let u5 = t5.uuid.clone();
+        let u6 = t6.uuid.clone();
+        let u7 = t7.uuid.clone();
+        let u8 = t8.uuid.clone();
+        let u9 = t9.uuid.clone();
+
+        t7.sub_of = Some(u5.clone());
+        t6.sub_of = Some(u4.clone());
+        t5.sub_of = Some(u4.clone());
+        t4.sub_of = Some(u3.clone());
+        t3.sub_of = Some(u1.clone());
+        t2.sub_of = Some(u1.clone());
+
+        let map: HashMap<_, _> = vec![t1, t2, t3, t4, t5, t6, t7, t8, t9]
+            .into_iter()
+            .map(|t| (t.uuid.clone(), t))
+            .collect();
+
+        let rows = get_tasks(map, Separation::None);
+        assert_eq!(rows.len(), 3);
+        let s1 = rows.iter().find(|r| task_from_row(r).task.uuid == u1).expect("sub went missing");
+        assert_eq!(s1.sub_tasks().len(), 2);
+        let sub: Vec<_> = s1.sub_tasks().iter().map(|r| task_from_row(r).task.uuid).collect();
+        assert!(sub.contains(&u2));
+        assert!(sub.contains(&u3));
+
+        let s2 = s1.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u2).expect("sub went missing");
+        assert_eq!(s2.sub_tasks().len(), 0);
+
+        let s3 = s1.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u3).expect("sub went missing");
+        assert_eq!(s3.sub_tasks().len(), 1);
+
+        let s4 = s3.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u4).expect("sub went missing");
+        assert_eq!(s4.sub_tasks().len(), 2);
+
+        let s5 = s4.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u5).expect("sub went missing");
+        assert_eq!(s5.sub_tasks().len(), 1);
+
+        let s7 = s5.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u7).expect("sub went missing");
+        assert_eq!(s7.sub_tasks().len(), 0);
+
+        let s6 = s4.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u6).expect("sub went missing");
+        assert_eq!(s6.sub_tasks().len(), 0);
+    }
 }

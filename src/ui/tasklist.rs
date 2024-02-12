@@ -8,12 +8,9 @@ use ratatui::{
     style::Style, 
     widgets::{
         Block, 
-        StatefulWidget, 
         Widget
     }
 };
-
-use crate::app::App;
 
 use super::{row::RowEntry, style::SharedTheme};
 
