@@ -30,7 +30,7 @@ impl TaskRow {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
-        let folded = context.list.is_folded(idx);
+        let folded = context.list.is_folded(idx - 1) && !self.sub_tasks.is_empty();
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }
@@ -124,7 +124,7 @@ impl TaskRow {
                 idx = index;
             }
         } else {
-            idx = context.index + self.len() - 1;
+            idx = idx + self.len() - 1;
         }
         (idx, y_max)
     }

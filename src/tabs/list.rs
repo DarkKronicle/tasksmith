@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use color_eyre::Result;
 
 use crossterm::event::KeyCode;
@@ -14,6 +14,7 @@ pub struct List {
     row: RowEntry,
     pub cursor: usize,
     size: usize,
+    folded: HashSet<usize>
 }
 
 impl List {
@@ -25,7 +26,8 @@ impl List {
         List {
             row,
             cursor: 0,
-            size
+            size,
+            folded: HashSet::new(),
         }
     }
 
@@ -36,7 +38,7 @@ impl List {
     }
 
     pub fn is_folded(&self, index: usize) -> bool {
-        false
+        self.folded.contains(&index)
     }
 
     fn cursor(&mut self, cursor: isize) {
@@ -124,6 +126,12 @@ impl List {
         }
     }
 
+    fn fold_row(&mut self, index: usize) {
+        if !self.folded.remove(&index) {
+            self.folded.insert(index);
+        }
+    }
+
     pub fn event(&mut self, event: Event) {
         match event {
             Event::Key(k) => {
@@ -133,6 +141,9 @@ impl List {
                     }
                     KeyCode::Char('k') => {
                         self.cursor(-1)
+                    }
+                    KeyCode::Enter => {
+                        self.fold_row(self.cursor);
                     }
                     _ => {}
                 }
