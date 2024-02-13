@@ -12,6 +12,8 @@ use ratatui::{
     }
 };
 
+use crate::tabs::list::List;
+
 use super::{row::RowEntry, style::SharedTheme};
 
 // Task widget will be able to do the following:
@@ -74,7 +76,7 @@ fn get_widths(widths: &Vec<Constraint>, columns: &[TableColumn], max_width: u16)
 
 impl TaskListWidget<'_> {
 
-    pub fn render(self, area: Rect, buf: &mut Buffer) {
+    pub fn render(self, area: Rect, buf: &mut Buffer, list: &List) {
         buf.set_style(area, self.style);
         if let Some(b) = &self.block {
             b.clone().render(area, buf)
@@ -85,11 +87,11 @@ impl TaskListWidget<'_> {
             return;
         }
 
-        self.render_tasks(widget_area, buf);
+        self.render_tasks(widget_area, buf, list);
 
     }
 
-    fn render_tasks(&self, area: Rect, buf: &mut Buffer) {
+    fn render_tasks(&self, area: Rect, buf: &mut Buffer, list: &List) {
         if self.root.sub_tasks().is_empty() {
             return;
         }
@@ -106,6 +108,7 @@ impl TaskListWidget<'_> {
                 depth: 0,
                 theme: self.theme.clone(),
                 widths: &widths,
+                list,
                 index: idx,
             });
             y_offset += y_off;

@@ -1,3 +1,5 @@
+use crate::tabs::list::List;
+
 use self::{task::TaskRow, text::TextRow};
 use ratatui::{buffer::Buffer, layout::Rect};
 
@@ -104,7 +106,7 @@ impl RowEntry {
         None
     }
 
-    pub fn add_task(&mut self, row: RowEntry) {
+    pub fn push_child(&mut self, row: RowEntry) {
         match self {
             Self::Root(r) => r.sub_tasks.push(row),
             Self::Text(r) => r.sub_tasks.push(row),
@@ -120,5 +122,6 @@ pub struct RenderContext<'a> {
     pub depth: u16, 
     pub theme: SharedTheme, 
     pub widths: &'a Vec<(TableColumn, u16, u16)>,
+    pub list: &'a List,
     pub index: usize,
 }

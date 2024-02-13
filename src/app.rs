@@ -50,13 +50,12 @@ impl App {
                         }
                     },
                     KeyCode::Char('q') => self.quit(),
-                    _ => {
-                        self.list.event(event);
-                    }
+                    _ => {}
                 }
             },
             _ => {}
         }
+        self.list.event(event);
         
     }
 

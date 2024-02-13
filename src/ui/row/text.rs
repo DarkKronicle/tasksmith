@@ -29,15 +29,9 @@ impl TextRow {
             1,
         );
         let mut idx = context.index + 1;
-        let folded = false;
-        // let folded = state.folded.contains(&idx);
-        // if let Some(cursor_index) = state.cursor {
-        //     if cursor_index == idx {
-        //         buf.set_style(row_area, context.theme.cursor());
-        //     }
-        // }
-        if self.sub_tasks.is_empty() {
-            return (idx, 0);
+        let folded = context.list.is_folded(idx);
+        if context.list.cursor == idx - 1 {
+            buf.set_style(row_area, context.theme.cursor());
         }
         let mut y_max = 0;
         let mut text_parts = vec![];
@@ -71,6 +65,7 @@ impl TextRow {
                     depth: context.depth + 1,
                     theme: context.theme.clone(),
                     widths: context.widths,
+                    list: context.list,
                     index: idx,
                 });
                 idx = index;

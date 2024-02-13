@@ -30,13 +30,10 @@ impl TaskRow {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
-        let folded = false;
-        // let folded = state.folded.contains(&idx);
-        // if let Some(cursor_index) = state.cursor {
-        //     if cursor_index == idx {
-        //         buf.set_style(row_area, context.theme.cursor());
-        //     }
-        // }
+        let folded = context.list.is_folded(idx);
+        if context.list.cursor == idx - 1 {
+            buf.set_style(row_area, context.theme.cursor());
+        }
         for (column, c_x, _width) in context.widths {
             match column {
                 TableColumn::Description => {
@@ -121,6 +118,7 @@ impl TaskRow {
                     theme: context.theme.clone(),
                     widths: context.widths,
                     index: idx,
+                    list: context.list
                 });
                 y_max += y_offset;
                 idx = index;

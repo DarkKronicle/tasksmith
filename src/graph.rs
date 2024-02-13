@@ -168,7 +168,7 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
             let mut new_rows: Vec<_> = statuses.into_iter().map(|(k, r)| {
                 let position = sorted_statuses.iter().position(|s| s == &k).unwrap() as i8;
                 RowEntry::Text(TextRow::new(k.to_string(), r, position))
-            }).collect();
+            }).filter(|r| !r.sub_tasks().is_empty()).collect();
             sort_rows(&mut new_rows);
             new_rows
         }
