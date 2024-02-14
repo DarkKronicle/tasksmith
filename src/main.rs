@@ -15,6 +15,7 @@ mod tabs;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
+
     let mut terminal = terminal_enter(std::io::stdout())?;
     run(&mut terminal)?;
     terminal_reset()?;

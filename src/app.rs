@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::atomic::{AtomicBool, Ordering}};
 
 use color_eyre::eyre::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
-use ratatui::Frame;
+use ratatui::{layout::Rect, Frame};
 use uuid::Uuid;
 
 use crate::{data::{get_tasks, Task}, event::Event, tabs::list::List, ui::style::SharedTheme};
@@ -13,6 +13,7 @@ pub struct App {
     pub theme: SharedTheme,
     pub list: List,
     pub tasks: HashMap<Uuid, Task>,
+    last_size: Option<Rect>
 }
 
 impl App {
@@ -25,6 +26,7 @@ impl App {
             theme: SharedTheme::default(),
             list,
             tasks: task_map,
+            last_size: None
         })
     }
 
@@ -34,9 +36,9 @@ impl App {
         self.should_quit.swap(true, Ordering::Relaxed);
     }
 
-    pub fn draw(&self, frame: &mut Frame) -> Result<()> {
+    pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
         let fsize = frame.size();
-        self.list.draw(self, frame, fsize)?;
+        self.list.draw(self.theme.clone(), frame, fsize)?;
         Ok(())
     }
 

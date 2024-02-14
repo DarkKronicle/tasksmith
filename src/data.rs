@@ -1,7 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use strum_macros::EnumIter;
 use uuid::Uuid;
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, io, process::Command};
 
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
@@ -245,14 +245,22 @@ pub fn from_json(val: Value) -> Result<HashMap<Uuid, Task>> {
 }
 
 pub fn get_tasks() -> Result<HashMap<Uuid, Task>> {
-    let output = Command::new("task").arg("export").output()?;
-    let contents = String::from_utf8_lossy(&output.stdout);
+
+    let s = if atty::is(atty::Stream::Stdin) {
+        let output = Command::new("task").arg("export").output()?;
+        let contents = String::from_utf8_lossy(&output.stdout);
+        let s: String = contents.chars().filter(|c| !c.is_control()).collect();
+        s
+    } else {
+        let lines: Vec<_> = io::stdin().lines().map(|l| l.unwrap()).collect();
+        lines.join("\n")
+        // "".to_string()
+    };
 
     // TODO: Taskwarrior doesn't guard against invalid escape sequences
     // `control character (\u0000-\u001F) found while parsing a string`
     // serde doesn't support invalid stuff, https://github.com/serde-rs/json/issues/616
     // may need to use a fork eventually?
-    let s: String = contents.chars().filter(|c| !c.is_control()).collect();
     let json: Value = serde_json::from_str(&s)?;
     let result = from_json(json)?;
     Ok(result)

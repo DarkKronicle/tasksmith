@@ -48,12 +48,14 @@ impl TextRow {
         text_parts.push(span.clone());
 
         let text: Text = Line::from(text_parts).into();
-        for line in &text {
-            if context.y + y_max >= area.height {
-                return (idx, y_max)
+        if idx - 1 >= context.list.focus {
+            for line in &text {
+                if context.y + y_max >= area.height {
+                    return (idx, y_max)
+                }
+                buf.set_line(row_area.x + (context.depth * 2), row_area.y + y_max, line, row_area.width);
+                y_max += 1;
             }
-            buf.set_line(row_area.x + (context.depth * 2), row_area.y + y_max, line, row_area.width);
-            y_max += 1;
         }
         if !folded {
             for task in &self.sub_tasks {

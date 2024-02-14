@@ -34,76 +34,78 @@ impl TaskRow {
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }
-        for (column, c_x, _width) in context.widths {
-            match column {
-                TableColumn::Description => {
-                    let mut y_offset = 0;
-                    let mut lines = vec![];
-                    if !self.sub_tasks.is_empty() {
-                        // Are there items to actually fold?
-                        let fold_text: Span = if folded {
-                            FOLD_CLOSE.into()
-                        } else {
-                            FOLD_OPEN.into()
-                        };
-                        lines.push(fold_text.style(context.theme.fold()));
-                    }
-                    lines.push(
-                        Span::styled(&self.task.description, context.theme.text()),
-                    );
-                    let text: Text = Line::from(lines).into();
-                    for line in &text.lines {
-                        if context.y + y_offset >= area.height {
-                            return (idx, max(y_max, y_offset));
-                        }
-                        buf.set_line(row_area.x + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
-                        y_offset += 1;
-                    };
-                    y_max = max(y_offset, y_max);
-                },
-                TableColumn::State => {
-                    let (sequence, style) = match self.task.status {
-                        TaskStatus::Blocked => {
-                            ("", Style::default().fg(Color::Blue))
-                        },
-                        TaskStatus::Completed => {
-                            ("", Style::default().fg(Color::Blue))
-                        },
-                        TaskStatus::Waiting => {
-                            ("", Style::default().fg(Color::Blue))
-                        },
-                        TaskStatus::Deleted => {
-                            ("", Style::default().fg(Color::Gray))
-                        },
-                        TaskStatus::Recurring => {
-                            ("", Style::default().fg(Color::Blue))
-                        },
-                        TaskStatus::Pending => {
-                            let urgency = self.task.urgency;
-                            let block = if urgency > 9.0 {
-                                "◼◼◼"
-                            } else if urgency > 6.0 {
-                                "◼◼"
-                            } else if urgency > 3.0 {
-                                "◼"
+        if idx - 1 >= context.list.focus {
+            for (column, c_x, _width) in context.widths {
+                match column {
+                    TableColumn::Description => {
+                        let mut y_offset = 0;
+                        let mut lines = vec![];
+                        if !self.sub_tasks.is_empty() {
+                            // Are there items to actually fold?
+                            let fold_text: Span = if folded {
+                                FOLD_CLOSE.into()
                             } else {
-                                ""
+                                FOLD_OPEN.into()
                             };
-                            (block, Style::default().fg(Color::Red))
+                            lines.push(fold_text.style(context.theme.fold()));
                         }
-                    };
-                    let span: Span = Span::styled(sequence, style);
-                    let text: Text = span.into();
-                    let mut y_offset = 0;
-                    let x_offset = (3 - sequence.chars().count()) as u16;
-                    for line in &text.lines {
-                        if context.y + y_offset >= area.height {
-                            return (idx, max(y_max, y_offset));
-                        }
-                        buf.set_line(row_area.x + x_offset + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
-                        y_offset += 1;
-                    };
-                    y_max = max(y_offset, y_max);
+                        lines.push(
+                            Span::styled(&self.task.description, context.theme.text()),
+                        );
+                        let text: Text = Line::from(lines).into();
+                        for line in &text.lines {
+                            if context.y + y_offset >= area.height {
+                                return (idx, max(y_max, y_offset));
+                            }
+                            buf.set_line(row_area.x + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
+                            y_offset += 1;
+                        };
+                        y_max = max(y_offset, y_max);
+                    },
+                    TableColumn::State => {
+                        let (sequence, style) = match self.task.status {
+                            TaskStatus::Blocked => {
+                                ("", Style::default().fg(Color::Blue))
+                            },
+                            TaskStatus::Completed => {
+                                ("", Style::default().fg(Color::Blue))
+                            },
+                            TaskStatus::Waiting => {
+                                ("", Style::default().fg(Color::Blue))
+                            },
+                            TaskStatus::Deleted => {
+                                ("", Style::default().fg(Color::Gray))
+                            },
+                            TaskStatus::Recurring => {
+                                ("", Style::default().fg(Color::Blue))
+                            },
+                            TaskStatus::Pending => {
+                                let urgency = self.task.urgency;
+                                let block = if urgency > 9.0 {
+                                    "◼◼◼"
+                                } else if urgency > 6.0 {
+                                    "◼◼"
+                                } else if urgency > 3.0 {
+                                    "◼"
+                                } else {
+                                    ""
+                                };
+                                (block, Style::default().fg(Color::Red))
+                            }
+                        };
+                        let span: Span = Span::styled(sequence, style);
+                        let text: Text = span.into();
+                        let mut y_offset = 0;
+                        let x_offset = (3 - sequence.chars().count()) as u16;
+                        for line in &text.lines {
+                            if context.y + y_offset >= area.height {
+                                return (idx, max(y_max, y_offset));
+                            }
+                            buf.set_line(row_area.x + x_offset + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
+                            y_offset += 1;
+                        };
+                        y_max = max(y_offset, y_max);
+                    }
                 }
             }
         }
