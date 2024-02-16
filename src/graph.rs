@@ -10,7 +10,7 @@ pub enum Separation {
     Status,
 }
 
-fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowEntry> {
+fn get_tasks(mut tasks: &HashMap<Uuid, Task>, separation: Separation) -> Vec<RowEntry> {
     // Ok, so this is a doozey of an algorithm. I'll explain it here:
     //
     // First of all, why this implementation?
@@ -57,20 +57,20 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
     // - Code uses way too many expects
     // - Could probably de-duplicate some code (the loop mainly)
 
-
+    let mut tasks_mut = &mut tasks.clone();
 
     // Create parent -> child map
     let mut parent_map: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
 
     for task in tasks.values() {
-        parent_map.entry(task.uuid.clone()).or_insert_with(Vec::new);
+        parent_map.entry(task.uuid).or_default();
         if let Some(sub_of) = task.sub_of {
-            parent_map.entry(sub_of.clone()).or_insert_with(Vec::new).push(task.uuid.clone());
+            parent_map.entry(sub_of).or_default().push(task.uuid);
         }
     }
 
     // Tasks that have no parent
-    let root_tasks: Vec<_> = tasks.values().filter(|t| t.sub_of.is_none()).map(|t| t.uuid.clone()).collect();
+    let root_tasks: Vec<_> = tasks.values().filter(|t| t.sub_of.is_none()).map(|t| t.uuid).collect();
 
     // Depth first stack. We start at the roots.
     let mut task_stack: VecDeque<Uuid> = root_tasks.clone().into();
@@ -83,18 +83,18 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
 
     // Start: depth first searc
     while let Some(uuid) = task_stack.pop_back() {
-        let task = tasks.remove(&uuid).expect("task went missing");
+        let task = tasks_mut.remove(&uuid).expect("task went missing");
         let children = parent_map.get(&uuid).expect("built map");
         if !children.is_empty() {
             // Has children, so we create a TaskRow and queue that up.
-            let row = TaskRow { task, sub_tasks: vec![] };
+            let row = TaskRow { task: task.uuid, sub_tasks: vec![] };
             task_stack.extend(children);
             rows_depth.push_back(row);
         } else {
             if rows_depth.is_empty() {
                 // We are at root level! So we just add it
                 // These are root tasks that have no children
-                let row = TaskRow { task, sub_tasks: vec![] };
+                let row = TaskRow { task: task.uuid, sub_tasks: vec![] };
                 rows.push(RowEntry::Task(row));
                 continue;
             }
@@ -102,8 +102,8 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
             // goes in order.
             
             // Parent uuid
-            let par = task.sub_of.expect("task went missing").clone();
-            let row = TaskRow { task, sub_tasks: vec![] };
+            let par = task.sub_of.expect("task went missing");
+            let row = TaskRow { task: task.uuid, sub_tasks: vec![] };
             
             // The parent TaskRow
             let mut one_up = rows_depth.pop_back().expect("depth went missing");
@@ -118,7 +118,7 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
                 // next will be another child for this task
                 rows_depth.push_back(one_up);
             } else {
-                sort_rows(&mut one_up.sub_tasks);
+                sort_rows(&mut one_up.sub_tasks, tasks);
                 // There are no more children, so we have to start building
                 // the rows as we traverse upwards.
                 
@@ -130,13 +130,14 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
                 // Make a loop to traverse upwards
                 loop {
                     let current = ascend.pop_back().expect("went missing");
-                    if current.task.sub_of.is_none() {
+                    let task = tasks.get(&current.task).unwrap();
+                    if task.sub_of.is_none() {
                         rows.push(RowEntry::Task(current));
                         break;
                     }
-                    let par = current.task.sub_of.expect("task went missing").clone();
+                    let par = task.sub_of.expect("task went missing");
                     let vec = parent_map.get_mut(&par).expect("parent went missing");
-                    let uuid = current.task.uuid;
+                    let uuid = task.uuid;
                     vec.remove(vec.iter().position(|x| *x == uuid).expect("child went missing"));
 
                     let mut one_up = rows_depth.pop_back().expect("went missing");
@@ -151,7 +152,7 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
 
         }
     }
-    sort_rows(&mut rows);
+    sort_rows(&mut rows, tasks);
     match separation {
         Separation::None => rows,
         Separation::Status => {
@@ -160,7 +161,8 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
             let mut statuses: HashMap<TaskStatus, Vec<RowEntry>> = TaskStatus::iter().map(|s| (s, vec![])).collect();
             for row in rows.into_iter() {
                 if let RowEntry::Task(ref t) = row {
-                    statuses.get_mut(&t.task.status).unwrap().push(row);
+                    let task = tasks.get(&t.task).unwrap();
+                    statuses.get_mut(&task.status).unwrap().push(row);
                 } else {
                     
                 }
@@ -169,7 +171,7 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
                 let position = sorted_statuses.iter().position(|s| s == &k).unwrap() as i8;
                 RowEntry::Text(TextRow::new(k.to_string(), r, position))
             }).filter(|r| !r.sub_tasks().is_empty()).collect();
-            sort_rows(&mut new_rows);
+            sort_rows(&mut new_rows, tasks);
             new_rows
         }
     }
@@ -178,26 +180,28 @@ fn get_tasks(mut tasks: HashMap<Uuid, Task>, separation: Separation) -> Vec<RowE
 }
 
 
-pub fn into_root(tasks: HashMap<Uuid, Task>, separation: Separation) -> RootRow {
+pub fn into_root(tasks: &HashMap<Uuid, Task>, separation: Separation) -> RootRow {
     RootRow {
         sub_tasks: get_tasks(tasks, separation)
     }
 }
 
-pub fn sort_rows(rows: &mut [RowEntry]) {
+pub fn sort_rows(rows: &mut [RowEntry], tasks: &HashMap<Uuid, Task>) {
     rows.sort_by(|a, b| {
         if let RowEntry::Task(a) = a {
             if let RowEntry::Task(b) = b {
-                if a.task.status == b.task.status {
-                    let cmp = b.task.urgency.partial_cmp(&a.task.urgency).expect("Invalid urgency");
+                let a = tasks.get(&a.task).unwrap();
+                let b = tasks.get(&b.task).unwrap();
+                if a.status == b.status {
+                    let cmp = b.urgency.partial_cmp(&a.urgency).expect("Invalid urgency");
                     return match cmp {
                         Ordering::Equal => {
-                            b.task.description.cmp(&a.task.description)
+                            b.description.cmp(&a.description)
                         },
                         _ => cmp
                     }
                 }
-                return a.task.status.partial_cmp(&b.task.status).expect("Invalid status");
+                return a.status.partial_cmp(&b.status).expect("Invalid status");
             }
         } else if let RowEntry::Text(a) = a {
             if let RowEntry::Text(b) = b {
@@ -229,71 +233,71 @@ mod tests {
 
         let map: HashMap<_, _> = vec![t1, t2, t3, t4, t5]
             .into_iter()
-            .map(|t| (t.uuid.clone(), t))
+            .map(|t| (t.uuid, t))
             .collect();
 
-        let rows = get_tasks(map, Separation::None);
+        let rows = get_tasks(&map, Separation::None);
         assert_eq!(rows.len(), 5);
     }
 
     #[test]
     fn nested_children() {
-        let mut t1 = Task::new("t1".to_string());
+        let t1 = Task::new("t1".to_string());
         let mut t2 = Task::new("t2".to_string());
         let mut t3 = Task::new("t3".to_string());
         let mut t4 = Task::new("t4".to_string());
         let mut t5 = Task::new("t5".to_string());
         let mut t6 = Task::new("t6".to_string());
         let mut t7 = Task::new("t7".to_string());
-        let mut t8 = Task::new("t8".to_string());
-        let mut t9 = Task::new("t9".to_string());
+        let t8 = Task::new("t8".to_string());
+        let t9 = Task::new("t9".to_string());
 
-        let u1 = t1.uuid.clone();
-        let u2 = t2.uuid.clone();
-        let u3 = t3.uuid.clone();
-        let u4 = t4.uuid.clone();
-        let u5 = t5.uuid.clone();
-        let u6 = t6.uuid.clone();
-        let u7 = t7.uuid.clone();
-        let u8 = t8.uuid.clone();
-        let u9 = t9.uuid.clone();
+        let u1 = t1.uuid;
+        let u2 = t2.uuid;
+        let u3 = t3.uuid;
+        let u4 = t4.uuid;
+        let u5 = t5.uuid;
+        let u6 = t6.uuid;
+        let u7 = t7.uuid;
+        // let u8 = t8.uuid;
+        // let u9 = t9.uuid;
 
-        t7.sub_of = Some(u5.clone());
-        t6.sub_of = Some(u4.clone());
-        t5.sub_of = Some(u4.clone());
-        t4.sub_of = Some(u3.clone());
-        t3.sub_of = Some(u1.clone());
-        t2.sub_of = Some(u1.clone());
+        t7.sub_of = Some(u5);
+        t6.sub_of = Some(u4);
+        t5.sub_of = Some(u4);
+        t4.sub_of = Some(u3);
+        t3.sub_of = Some(u1);
+        t2.sub_of = Some(u1);
 
         let map: HashMap<_, _> = vec![t1, t2, t3, t4, t5, t6, t7, t8, t9]
             .into_iter()
-            .map(|t| (t.uuid.clone(), t))
+            .map(|t| (t.uuid, t))
             .collect();
 
-        let rows = get_tasks(map, Separation::None);
+        let rows = get_tasks(&map, Separation::None);
         assert_eq!(rows.len(), 3);
-        let s1 = rows.iter().find(|r| task_from_row(r).task.uuid == u1).expect("sub went missing");
+        let s1 = rows.iter().find(|r| task_from_row(r).task == u1).expect("sub went missing");
         assert_eq!(s1.sub_tasks().len(), 2);
-        let sub: Vec<_> = s1.sub_tasks().iter().map(|r| task_from_row(r).task.uuid).collect();
+        let sub: Vec<_> = s1.sub_tasks().iter().map(|r| task_from_row(r).task).collect();
         assert!(sub.contains(&u2));
         assert!(sub.contains(&u3));
 
-        let s2 = s1.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u2).expect("sub went missing");
+        let s2 = s1.sub_tasks().iter().find(|r| task_from_row(r).task == u2).expect("sub went missing");
         assert_eq!(s2.sub_tasks().len(), 0);
 
-        let s3 = s1.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u3).expect("sub went missing");
+        let s3 = s1.sub_tasks().iter().find(|r| task_from_row(r).task == u3).expect("sub went missing");
         assert_eq!(s3.sub_tasks().len(), 1);
 
-        let s4 = s3.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u4).expect("sub went missing");
+        let s4 = s3.sub_tasks().iter().find(|r| task_from_row(r).task == u4).expect("sub went missing");
         assert_eq!(s4.sub_tasks().len(), 2);
 
-        let s5 = s4.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u5).expect("sub went missing");
+        let s5 = s4.sub_tasks().iter().find(|r| task_from_row(r).task == u5).expect("sub went missing");
         assert_eq!(s5.sub_tasks().len(), 1);
 
-        let s7 = s5.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u7).expect("sub went missing");
+        let s7 = s5.sub_tasks().iter().find(|r| task_from_row(r).task == u7).expect("sub went missing");
         assert_eq!(s7.sub_tasks().len(), 0);
 
-        let s6 = s4.sub_tasks().iter().find(|r| task_from_row(r).task.uuid == u6).expect("sub went missing");
+        let s6 = s4.sub_tasks().iter().find(|r| task_from_row(r).task == u6).expect("sub went missing");
         assert_eq!(s6.sub_tasks().len(), 0);
     }
 }

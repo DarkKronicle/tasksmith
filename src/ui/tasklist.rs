@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ratatui::{
     buffer::Buffer, 
     layout::{
@@ -11,8 +13,9 @@ use ratatui::{
         Widget
     }
 };
+use uuid::Uuid;
 
-use crate::tabs::list::List;
+use crate::{data::Task, tabs::list::List};
 
 use super::{row::RowEntry, style::SharedTheme};
 
@@ -76,7 +79,7 @@ fn get_widths(widths: &Vec<Constraint>, columns: &[TableColumn], max_width: u16)
 
 impl TaskListWidget<'_> {
 
-    pub fn render(self, area: Rect, buf: &mut Buffer, list: &List) {
+    pub fn render(self, area: Rect, buf: &mut Buffer, list: &List, task_map: &HashMap<Uuid, Task>) {
         buf.set_style(area, self.style);
         if let Some(b) = &self.block {
             b.clone().render(area, buf)
@@ -87,11 +90,11 @@ impl TaskListWidget<'_> {
             return;
         }
 
-        self.render_tasks(widget_area, buf, list);
+        self.render_tasks(widget_area, buf, list, task_map);
 
     }
 
-    fn render_tasks(&self, area: Rect, buf: &mut Buffer, list: &List) {
+    fn render_tasks(&self, area: Rect, buf: &mut Buffer, list: &List, task_map: &HashMap<Uuid, Task>) {
         if self.root.sub_tasks().is_empty() {
             return;
         }
@@ -110,6 +113,7 @@ impl TaskListWidget<'_> {
                 widths: &widths,
                 list,
                 index: idx,
+                task_map,
             });
             y_offset += y_off;
             idx = index;

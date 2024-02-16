@@ -1,7 +1,10 @@
-use crate::tabs::list::List;
+use std::collections::HashMap;
+
+use crate::{data::Task, tabs::list::List};
 
 use self::{task::TaskRow, text::TextRow};
 use ratatui::{buffer::Buffer, layout::Rect};
+use uuid::Uuid;
 
 use super::{style::SharedTheme, tasklist::TableColumn};
 
@@ -34,15 +37,9 @@ pub fn render_row(
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RootRow {
     pub sub_tasks: Vec<RowEntry>,
-}
-
-impl Default for RootRow {
-    fn default() -> RootRow {
-        RootRow { sub_tasks: vec![] }
-    }
 }
 
 
@@ -124,4 +121,5 @@ pub struct RenderContext<'a> {
     pub widths: &'a Vec<(TableColumn, u16, u16)>,
     pub list: &'a List,
     pub index: usize,
+    pub task_map: &'a HashMap<Uuid, Task>,
 }

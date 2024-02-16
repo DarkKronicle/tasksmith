@@ -48,7 +48,7 @@ impl TextRow {
         text_parts.push(span.clone());
 
         let text: Text = Line::from(text_parts).into();
-        if idx - 1 >= context.list.focus {
+        if idx > context.list.focus {
             for line in &text {
                 if context.y + y_max >= area.height {
                     return (idx, y_max)
@@ -68,6 +68,7 @@ impl TextRow {
                     theme: context.theme.clone(),
                     widths: context.widths,
                     list: context.list,
+                    task_map: context.task_map,
                     index: idx,
                 });
                 idx = index;

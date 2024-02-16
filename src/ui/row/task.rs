@@ -1,6 +1,7 @@
 use std::cmp::max;
 
 use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}};
+use uuid::Uuid;
 
 use crate::{data::TaskStatus, ui::tasklist::TableColumn};
 use crate::data::Task;
@@ -9,7 +10,7 @@ use super::{render_row, RenderContext, RowEntry, FOLD_CLOSE, FOLD_OPEN};
 
 #[derive(Debug, Clone)]
 pub struct TaskRow {
-    pub task: Task,
+    pub task: Uuid,
     pub sub_tasks: Vec<RowEntry>,
 }
 
@@ -34,7 +35,8 @@ impl TaskRow {
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }
-        if idx - 1 >= context.list.focus {
+        if idx > context.list.focus {
+            let task = context.task_map.get(&self.task).unwrap();
             for (column, c_x, _width) in context.widths {
                 match column {
                     TableColumn::Description => {
@@ -50,7 +52,7 @@ impl TaskRow {
                             lines.push(fold_text.style(context.theme.fold()));
                         }
                         lines.push(
-                            Span::styled(&self.task.description, context.theme.text()),
+                            Span::styled(&task.description, context.theme.text()),
                         );
                         let text: Text = Line::from(lines).into();
                         for line in &text.lines {
@@ -63,7 +65,7 @@ impl TaskRow {
                         y_max = max(y_offset, y_max);
                     },
                     TableColumn::State => {
-                        let (sequence, style) = match self.task.status {
+                        let (sequence, style) = match task.status {
                             TaskStatus::Blocked => {
                                 ("", Style::default().fg(Color::Blue))
                             },
@@ -80,7 +82,7 @@ impl TaskRow {
                                 ("", Style::default().fg(Color::Blue))
                             },
                             TaskStatus::Pending => {
-                                let urgency = self.task.urgency;
+                                let urgency = task.urgency;
                                 let block = if urgency > 9.0 {
                                     "◼◼◼"
                                 } else if urgency > 6.0 {
@@ -120,7 +122,8 @@ impl TaskRow {
                     theme: context.theme.clone(),
                     widths: context.widths,
                     index: idx,
-                    list: context.list
+                    list: context.list,
+                    task_map: context.task_map,
                 });
                 y_max += y_offset;
                 idx = index;

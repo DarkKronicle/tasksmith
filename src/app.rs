@@ -20,7 +20,7 @@ impl App {
 
     pub fn new() -> Result<Self> {
         let task_map = get_tasks()?;
-        let list = List::new(task_map.clone());
+        let list = List::new(&task_map.clone());
         Ok(Self {
             should_quit: false.into(),
             theme: SharedTheme::default(),
@@ -38,7 +38,7 @@ impl App {
 
     pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
         let fsize = frame.size();
-        self.list.draw(self.theme.clone(), frame, fsize)?;
+        self.list.draw(self.theme.clone(), frame, fsize, &self.tasks)?;
         Ok(())
     }
 

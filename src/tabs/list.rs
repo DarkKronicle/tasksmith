@@ -1,17 +1,24 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, rc::Rc};
 use color_eyre::Result;
 
 use crossterm::event::KeyCode;
 use ratatui::{layout::Rect, Frame};
 use uuid::Uuid;
 
-use crate::{app::App, data::Task, event::Event, graph::{self, Separation}, ui::{row::RowEntry, style::SharedTheme, tasklist::TaskListWidget}};
+use crate::{data::Task, event::Event, graph::{self, Separation}, ui::{row::RowEntry, style::SharedTheme, tasklist::TaskListWidget}};
 
+
+#[derive(Debug, Clone)]
+struct ListEntry {
+    row: Rc<RowEntry>,
+    index: usize
+}
 
 
 #[derive(Debug, Clone)]
 pub struct List {
     row: RowEntry,
+    flatten: Vec<ListEntry>,
     pub cursor: usize,
     start_task: usize,
     size: usize,
@@ -22,7 +29,7 @@ pub struct List {
 
 impl List {
 
-    pub fn new(tasks: HashMap<Uuid, Task>) -> Self {
+    pub fn new(tasks: &HashMap<Uuid, Task>) -> Self {
         let root = graph::into_root(tasks, Separation::Status);
         let subs = root.sub_tasks.len();
         let mut idx = 0;
@@ -31,15 +38,14 @@ impl List {
         for (i, sub) in root.sub_tasks.iter().enumerate() {
             if i == (subs - 1) {
                 break;
-            } else {
-                idx += sub.len();
             }
+            idx += sub.len();
         }
         let row = RowEntry::Root(root);
         let size = row.len();
         let mut hashset = HashSet::new();
         hashset.insert(idx);
-        List {
+        let mut list = List {
             row,
             cursor: 0,
             focus: 0,
@@ -47,13 +53,40 @@ impl List {
             size,
             folded: hashset,
             last_size: None,
-        }
+            flatten: vec![]
+        };
+        // let flatten = list.flatten();
+        // list.flatten = flatten;
+        list
     }
 
-    pub fn draw(&mut self, theme: SharedTheme, frame: &mut Frame, area: Rect) -> Result<()> {
+    // A function that "flattens" the rows into a single list
+    // This represents what will be rendered (i.e. folds are not added)
+    fn flatten(&self) -> Vec<ListEntry> {
+        let mut traversal: VecDeque<(usize, &RowEntry)> = VecDeque::new();
+        let mut first_traversal: VecDeque<&RowEntry> = self.row.sub_tasks().iter().rev().collect();
+        let mut index = 0;
+        while let Some(row) = first_traversal.pop_back() {
+            traversal.push_back((index, row));
+            let sub = row.sub_tasks();
+            if self.is_folded(index) {
+                let size = row.len();
+                // [)
+                index += size;
+                continue;
+            }
+            if !sub.is_empty() {
+                first_traversal.extend(row.sub_tasks().iter().rev());
+            }
+            index += 1;
+        }
+        todo!()
+    }
+
+    pub fn draw(&mut self, theme: SharedTheme, frame: &mut Frame, area: Rect, task_map: &HashMap<Uuid, Task>) -> Result<()> {
         let list_component = TaskListWidget::new(&self.row, theme);
         self.last_size = Some(area);
-        list_component.render(area, frame.buffer_mut(), self);
+        list_component.render(area, frame.buffer_mut(), self, task_map);
         Ok(())
     }
 
@@ -198,7 +231,7 @@ impl List {
 
     fn move_forward(&self, cursor: usize, change: usize) -> usize {
         let mut index = 0;
-        let mut togo = change.clone();
+        let mut togo = change;
         // Will start top to bottom
         let mut traversal: VecDeque<&RowEntry> = self.row.sub_tasks().iter().rev().collect();
         while let Some(row) = traversal.pop_back() {
