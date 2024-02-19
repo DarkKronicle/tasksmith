@@ -95,16 +95,15 @@ impl TaskListWidget<'_> {
     }
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer, list: &List, task_map: &HashMap<Uuid, Task>) {
-        // if self.root.sub_tasks().is_empty() {
-        //     return;
-        // }
-
         let mut y_offset = 0;
 
         let columns = vec![TableColumn::State, TableColumn::Description];
         let widths = get_widths(&self.widths, &columns, area.width);
 
         for (i, row) in self.rows.iter().enumerate() {
+            if i < list.focus {
+                continue;
+            }
             let y_off = super::row::render_row(row, area, buf, super::row::RenderContext {
                 y: y_offset,
                 depth: 0,

@@ -15,7 +15,7 @@ pub mod task;
 pub const FOLD_OPEN: &str = " ";
 pub const FOLD_CLOSE: &str = " ";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FoldState {
     NoChildren,
     Folded,
