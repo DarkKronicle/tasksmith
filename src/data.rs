@@ -1,4 +1,5 @@
 use chrono::{NaiveDateTime, Utc};
+use ratatui::style::{Color, Style};
 use strum_macros::EnumIter;
 use uuid::Uuid;
 use std::{collections::HashMap, io, process::Command};
@@ -151,6 +152,44 @@ pub enum TaskStatus {
 
     #[serde(rename = "deleted")]
     Deleted,
+
+}
+
+impl TaskStatus {
+
+    pub fn get_display(&self, task: &Task) -> (String, Style){
+        match self {
+            TaskStatus::Blocked => {
+                ("".to_string(), Style::default().fg(Color::Blue))
+            },
+            TaskStatus::Completed => {
+                ("".to_string(), Style::default().fg(Color::Blue))
+            },
+            TaskStatus::Waiting => {
+                ("".to_string(), Style::default().fg(Color::Blue))
+            },
+            TaskStatus::Deleted => {
+                ("".to_string(), Style::default().fg(Color::Gray))
+            },
+            TaskStatus::Recurring => {
+                ("".to_string(), Style::default().fg(Color::Blue))
+            },
+            TaskStatus::Pending => {
+                let urgency = task.urgency;
+                let block = if urgency > 9.0 {
+                    "◼◼◼"
+                } else if urgency > 6.0 {
+                    "◼◼"
+                } else if urgency > 3.0 {
+                    "◼"
+                } else {
+                    ""
+                };
+                (block.to_string(), Style::default().fg(Color::Red))
+            }
+        }
+
+    }
 
 }
 

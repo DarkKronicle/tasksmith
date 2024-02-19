@@ -35,7 +35,7 @@ pub struct TaskListWidget<'a> {
 
     block: Option<Block<'a>>,
 
-    root: &'a RowEntry,
+    rows: &'a [RowEntry],
 
     theme: SharedTheme,
 
@@ -43,12 +43,12 @@ pub struct TaskListWidget<'a> {
 
 impl<'a> TaskListWidget<'a> {
 
-    pub fn new(root: &'a RowEntry, theme: SharedTheme) -> TaskListWidget<'a> {
+    pub fn new(rows: &'a [RowEntry], theme: SharedTheme) -> TaskListWidget<'a> {
         TaskListWidget {
             style: Default::default(),
             widths: vec![Constraint::Length(4), Constraint::Fill(40)],
             block: Default::default(),
-            root,
+            rows,
             theme: theme.clone()
         }
     }
@@ -95,28 +95,26 @@ impl TaskListWidget<'_> {
     }
 
     fn render_tasks(&self, area: Rect, buf: &mut Buffer, list: &List, task_map: &HashMap<Uuid, Task>) {
-        if self.root.sub_tasks().is_empty() {
-            return;
-        }
+        // if self.root.sub_tasks().is_empty() {
+        //     return;
+        // }
 
         let mut y_offset = 0;
 
         let columns = vec![TableColumn::State, TableColumn::Description];
         let widths = get_widths(&self.widths, &columns, area.width);
-        let mut idx = 0;
 
-        for (i, row) in self.root.sub_tasks().iter().enumerate() {
-            let (index, y_off) = super::row::render_row(row, area, buf, super::row::RenderContext {
+        for (i, row) in self.rows.iter().enumerate() {
+            let y_off = super::row::render_row(row, area, buf, super::row::RenderContext {
                 y: y_offset,
                 depth: 0,
                 theme: self.theme.clone(),
                 widths: &widths,
                 list,
-                index: idx,
+                index: i,
                 task_map,
             });
             y_offset += y_off;
-            idx = index;
             if y_offset >= area.height {
                 break;
             }

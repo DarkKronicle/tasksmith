@@ -4,14 +4,14 @@ use ratatui::{buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, 
 use uuid::Uuid;
 
 use crate::{data::TaskStatus, ui::tasklist::TableColumn};
-use crate::data::Task;
 
-use super::{render_row, RenderContext, RowEntry, FOLD_CLOSE, FOLD_OPEN};
+use super::{FoldState, RenderContext, FOLD_CLOSE, FOLD_OPEN};
 
 #[derive(Debug, Clone)]
 pub struct TaskRow {
     pub task: Uuid,
-    pub sub_tasks: Vec<RowEntry>,
+    pub fold_state: FoldState,
+    pub depth: usize,
 }
 
 
@@ -22,7 +22,7 @@ impl TaskRow {
         area: Rect, 
         buf: &mut Buffer, 
         context: RenderContext,
-    ) -> (usize, u16) {
+    ) -> u16 {
         let row_area = Rect::new(
             area.x,
             area.y + context.y,
@@ -31,7 +31,7 @@ impl TaskRow {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
-        let folded = context.list.is_folded(idx - 1) && !self.sub_tasks.is_empty();
+        let folded = context.list.is_folded(idx - 1);
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }
@@ -42,14 +42,16 @@ impl TaskRow {
                     TableColumn::Description => {
                         let mut y_offset = 0;
                         let mut lines = vec![];
-                        if !self.sub_tasks.is_empty() {
-                            // Are there items to actually fold?
-                            let fold_text: Span = if folded {
-                                FOLD_CLOSE.into()
-                            } else {
-                                FOLD_OPEN.into()
-                            };
-                            lines.push(fold_text.style(context.theme.fold()));
+                        match self.fold_state {
+                            FoldState::NoChildren => {},
+                            FoldState::Folded => {
+                                let span: Span = FOLD_CLOSE.into();
+                                lines.push(span);
+                            }
+                            FoldState::Open => {
+                                let span: Span = FOLD_OPEN.into();
+                                lines.push(span);
+                            },
                         }
                         lines.push(
                             Span::styled(&task.description, context.theme.text()),
@@ -57,51 +59,23 @@ impl TaskRow {
                         let text: Text = Line::from(lines).into();
                         for line in &text.lines {
                             if context.y + y_offset >= area.height {
-                                return (idx, max(y_max, y_offset));
+                                return max(y_max, y_offset);
                             }
-                            buf.set_line(row_area.x + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
+                            let depth: u16 = u16::try_from(self.depth * 2).unwrap();
+                            buf.set_line(row_area.x + c_x + depth, row_area.y + y_offset, line, row_area.width);
                             y_offset += 1;
                         };
                         y_max = max(y_offset, y_max);
                     },
                     TableColumn::State => {
-                        let (sequence, style) = match task.status {
-                            TaskStatus::Blocked => {
-                                ("", Style::default().fg(Color::Blue))
-                            },
-                            TaskStatus::Completed => {
-                                ("", Style::default().fg(Color::Blue))
-                            },
-                            TaskStatus::Waiting => {
-                                ("", Style::default().fg(Color::Blue))
-                            },
-                            TaskStatus::Deleted => {
-                                ("", Style::default().fg(Color::Gray))
-                            },
-                            TaskStatus::Recurring => {
-                                ("", Style::default().fg(Color::Blue))
-                            },
-                            TaskStatus::Pending => {
-                                let urgency = task.urgency;
-                                let block = if urgency > 9.0 {
-                                    "◼◼◼"
-                                } else if urgency > 6.0 {
-                                    "◼◼"
-                                } else if urgency > 3.0 {
-                                    "◼"
-                                } else {
-                                    ""
-                                };
-                                (block, Style::default().fg(Color::Red))
-                            }
-                        };
-                        let span: Span = Span::styled(sequence, style);
+                        let (sequence, style) = task.status.get_display(task);
+                        let span: Span = Span::styled(sequence.clone(), style);
                         let text: Text = span.into();
                         let mut y_offset = 0;
                         let x_offset = (3 - sequence.chars().count()) as u16;
                         for line in &text.lines {
                             if context.y + y_offset >= area.height {
-                                return (idx, max(y_max, y_offset));
+                                return max(y_max, y_offset);
                             }
                             buf.set_line(row_area.x + x_offset + c_x + (context.depth * 2), row_area.y + y_offset, line, row_area.width);
                             y_offset += 1;
@@ -111,32 +85,7 @@ impl TaskRow {
                 }
             }
         }
-        if !folded {
-            for task in &self.sub_tasks {
-                if context.y + y_max >= area.height {
-                    return (idx, y_max)
-                }
-                let (index, y_offset) = render_row(task, area, buf, RenderContext {
-                    y: context.y + y_max,
-                    depth: context.depth + 1,
-                    theme: context.theme.clone(),
-                    widths: context.widths,
-                    index: idx,
-                    list: context.list,
-                    task_map: context.task_map,
-                });
-                y_max += y_offset;
-                idx = index;
-            }
-        } else {
-            idx = idx + self.len() - 1;
-        }
-        (idx, y_max)
-    }
-
-    pub fn len(&self) -> usize {
-        let count: usize = self.sub_tasks.iter().map(|t| t.len()).sum();
-        count + 1
+        y_max
     }
 
 }

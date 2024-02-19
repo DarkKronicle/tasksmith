@@ -7,6 +7,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 
 mod data;
 mod graph;
+mod util;
 mod ui;
 mod app;
 mod event;
