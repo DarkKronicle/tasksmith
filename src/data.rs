@@ -8,6 +8,8 @@ use serde_json::Value;
 use serde::{Deserialize, Serialize};
 use color_eyre::Result;
 
+use crate::util::graph::ParentToChild;
+
 
 mod date_parser {
     use serde::{Serializer, Deserializer};
@@ -272,6 +274,22 @@ impl Task {
             udas: HashMap::default(),
         }
     }
+}
+
+impl ParentToChild for Task {
+
+    fn sub_of(&self) -> Option<Uuid> {
+        self.sub_of
+    }
+
+    fn get_id(&self) -> Uuid {
+        self.uuid
+    }
+
+    fn get_id_ref(& self) -> &Uuid {
+        &self.uuid
+    }
+
 }
 
 pub fn from_json(val: Value) -> Result<HashMap<Uuid, Task>> {

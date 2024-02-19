@@ -6,7 +6,6 @@ use event::{Event, EventHandler};
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 mod data;
-mod graph;
 mod util;
 mod ui;
 mod app;

@@ -5,8 +5,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct Node {
 
-    val: Uuid,
-    sub: Vec<Node>
+    pub val: Uuid,
+    pub sub: Vec<Node>
     
 }
 
@@ -56,7 +56,7 @@ pub trait ParentToChild {
 
 
 
-fn graph_nodes<T: ParentToChild>(id_map: &HashMap<Uuid, T>) -> Vec<Node> {
+pub fn graph_nodes<T: ParentToChild>(id_map: &HashMap<Uuid, T>) -> Vec<Node> {
     // Ok, so this is a doozey of an algorithm. I'll explain it here:
     //
     // First of all, why this implementation?
