@@ -12,6 +12,7 @@ pub struct TaskRow {
     pub task: Uuid,
     pub fold_state: FoldState,
     pub depth: usize,
+    pub idx: usize,
 }
 
 
@@ -31,7 +32,6 @@ impl TaskRow {
         );
         let mut y_max = 0;
         let mut idx = context.index + 1;
-        let folded = context.list.is_folded(idx - 1);
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }

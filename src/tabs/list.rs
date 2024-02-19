@@ -3,9 +3,10 @@ use color_eyre::Result;
 
 use crossterm::event::KeyCode;
 use ratatui::{layout::Rect, Frame};
+use strum::IntoEnumIterator;
 use uuid::Uuid;
 
-use crate::{data::Task, event::Event, ui::{row::{task::TaskRow, FoldState, RowEntry}, style::SharedTheme, tasklist::TaskListWidget}, util::{self, graph::{Idable, Node}}};
+use crate::{data::{Task, TaskStatus}, event::Event, ui::{row::{task::TaskRow, text::TextRow, FoldState, RowEntry}, style::SharedTheme, tasklist::TaskListWidget}, util::{self, graph::{Idable, Node}}};
 
 
 
@@ -21,21 +22,15 @@ pub struct List {
 impl List {
 
     pub fn new(tasks: &HashMap<Uuid, Task>) -> Self {
-        let mut hashset = HashSet::new();
+        let hashset = HashSet::new();
         let rows = get_tasks(tasks, Separation::Status, &hashset);
-        let mut idx = 0;
-        // Fold default by default
-        hashset.insert(idx);
-        let mut list = List {
+        List {
             rows,
             cursor: 0,
             focus: 0,
             folded: hashset,
             last_size: None,
-        };
-        // let flatten = list.flatten();
-        // list.flatten = flatten;
-        list
+        }
     }
 
     pub fn draw(&mut self, theme: SharedTheme, frame: &mut Frame, area: Rect, task_map: &HashMap<Uuid, Task>) -> Result<()> {
@@ -119,31 +114,34 @@ impl List {
         }
     }
 
-    fn fold_row(&mut self, index: usize) {
-        if !self.folded.remove(&index) {
-            self.folded.insert(index);
+    fn fold_row(&mut self, index: usize, tasks: &HashMap<Uuid, Task>) {
+        if let Some(row) = self.rows.get(index) {
+            if row.fold_state() == FoldState::NoChildren {
+                return
+            }
+            if !self.folded.remove(&row.index()) {
+                self.folded.insert(row.index());
+            }
+            self.rows = get_tasks(tasks, Separation::Status, &self.folded);
         }
     }
 
-    pub fn event(&mut self, event: Event) {
-        match event {
-            Event::Key(k) => {
-                match k.code {
-                    KeyCode::Char('j') => {
-                        self.cursor(1);
-                        self.focus();
-                    }
-                    KeyCode::Char('k') => {
-                        self.cursor(-1);
-                        self.focus();
-                    }
-                    KeyCode::Enter => {
-                        self.fold_row(self.cursor);
-                    }
-                    _ => {}
+    pub fn event(&mut self, event: Event, tasks: &HashMap<Uuid, Task>) {
+        if let Event::Key(k) = event {
+            match k.code {
+                KeyCode::Char('j') => {
+                    self.cursor(1);
+                    self.focus();
                 }
+                KeyCode::Char('k') => {
+                    self.cursor(-1);
+                    self.focus();
+                }
+                KeyCode::Enter => {
+                    self.fold_row(self.cursor, tasks);
+                }
+                _ => {}
             }
-            _ => {}
         }
     }
 
@@ -155,15 +153,71 @@ pub enum Separation {
     Status,
 }
 
+fn node_to_row(node: &Node, idx: usize, depth: usize, fold_state: FoldState) -> RowEntry {
+    match node {
+        Node::Text(ref t) => {
+            RowEntry::Text(
+                TextRow {
+                    text: t.text.clone(),
+                    depth,
+                    fold_state,
+                    idx,
+                }
+            )
+        }
+        Node::Task(ref t) => {
+            RowEntry::Task(
+                TaskRow { 
+                    task: t.val, 
+                    depth, 
+                    fold_state,
+                    idx,
+                }
+            )
+        }
+    }
+}
+
 pub fn get_tasks(tasks: &HashMap<Uuid, Task>, separation: Separation, folded: &HashSet<usize>) -> Vec<RowEntry> {
     let mut nodes = util::graph::graph_nodes(tasks);
 
-    sort_tasks(&mut nodes, tasks);
-
     // Reverse because we go back to front
-    nodes.reverse();
 
-    let mut traverse: VecDeque<_> = nodes.into_iter().collect();
+    let mut separation_nodes: Vec<Node> = match separation {
+        Separation::Status => {
+            let mut status_map: HashMap<TaskStatus, Vec<Node>> = TaskStatus::iter().map(|s| (s, vec![])).collect();
+            for node in nodes.into_iter() {
+                status_map.get_mut(&tasks.get(node.get_id_ref()).unwrap().status).unwrap().push(node);
+            };
+            let sorted_status = {
+                let mut status_vec: Vec<_> = TaskStatus::iter().collect();
+                status_vec.sort();
+                status_vec
+            };
+            let mut new_nodes = Vec::new();
+
+            for status in sorted_status {
+                let mut inner_nodes = status_map.remove(&status).unwrap();
+                if inner_nodes.is_empty() {
+                    continue;
+                }
+                sort_tasks(&mut inner_nodes, tasks);
+                inner_nodes.reverse();
+                new_nodes.push(Node::text(status.to_string(), inner_nodes))
+            }
+
+            new_nodes
+
+        }
+        Separation::None => {
+            sort_tasks(&mut nodes, tasks);
+            nodes
+        }
+    };
+
+    separation_nodes.reverse();
+
+    let mut traverse: VecDeque<_> = separation_nodes.into_iter().collect();
     let mut depth: VecDeque<usize> = VecDeque::new();
     let mut rows = Vec::new();
     let mut idx = 0;
@@ -176,22 +230,17 @@ pub fn get_tasks(tasks: &HashMap<Uuid, Task>, separation: Separation, folded: &H
         } else {
             FoldState::Open
         };
-        let row = RowEntry::Task(
-            TaskRow { 
-                task: node.get_id(), 
-                depth: depth.len(), 
-                fold_state: fold_state.clone()
-            }
-        );
+        let row = node_to_row(&node, idx, depth.len(), fold_state.clone());
         rows.push(row);
         let d_opt = depth.pop_back().map(|v| if v > 0 { v - 1 } else { v });
-        if !node.sub.is_empty() && fold_state != FoldState::Folded {
+        if !node.sub().is_empty() && fold_state != FoldState::Folded {
             // Children
             if let Some(d) = d_opt {
                 depth.push_back(d);
             }
-            depth.push_back(node.sub.len());
-            traverse.extend(node.sub);
+            depth.push_back(node.sub().len());
+            traverse.extend(node.into_sub());
+            idx += 1;
         } else {
             // No Children/folded
             if let Some(d) = d_opt {
@@ -202,9 +251,8 @@ pub fn get_tasks(tasks: &HashMap<Uuid, Task>, separation: Separation, folded: &H
             while depth.back().map_or_else(|| { false }, |d| {*d == 0}) {
                 depth.pop_back();
             }
-            idx += node.child_len();
+            idx += node.recursive_child_len();
         }
-        idx += 1;
     }
 
     rows

@@ -30,24 +30,36 @@ pub fn render_row(
 ) -> u16 {
     match row {
         RowEntry::Task(t) => {
-            let offset = t.render(area, buf, context);
-            offset
+            t.render(area, buf, context)
         },
         RowEntry::Text(t) => {
-            let offset = t.render(area, buf, context);
-            offset
+            t.render(area, buf, context)
         },
-        _ => {
-            context.y
-        }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum RowEntry {
     Text(TextRow),
     Task(TaskRow),
+}
+
+impl RowEntry {
+
+    pub fn fold_state(&self) -> FoldState {
+        match self {
+            RowEntry::Task(t) => t.fold_state.clone(),
+            RowEntry::Text(t) => t.fold_state.clone(),
+        }
+    }
+
+    pub fn index(&self) -> usize {
+        match self {
+            RowEntry::Task(t) => t.idx,
+            RowEntry::Text(t) => t.idx,
+        }
+    }
+    
 }
 
 

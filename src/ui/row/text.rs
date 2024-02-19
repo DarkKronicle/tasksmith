@@ -9,9 +9,9 @@ use super::{render_row, FOLD_CLOSE, FOLD_OPEN};
 pub struct TextRow
 {
     pub text: String,
-    pub sort_by: i8,
     pub fold_state: FoldState,
     pub depth: usize,
+    pub idx: usize,
 }
 
 
@@ -29,8 +29,7 @@ impl TextRow {
             area.width,
             1,
         );
-        let mut idx = context.index + 1;
-        let folded = context.list.is_folded(idx - 1);
+        let idx = context.index + 1;
         if context.list.cursor == idx - 1 {
             buf.set_style(row_area, context.theme.cursor());
         }
@@ -64,12 +63,12 @@ impl TextRow {
     }
 
 
-    pub fn new(text: String, sort_by: i8, depth: usize, fold_state: FoldState) -> TextRow {
+    pub fn new(text: String, depth: usize, fold_state: FoldState, idx: usize) -> TextRow {
         TextRow { 
             text,
-            sort_by,
             depth,
             fold_state,
+            idx,
         }
     }
 }

@@ -3,38 +3,87 @@ use std::collections::{HashMap, VecDeque};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct Node {
-
+pub struct TaskNode {
     pub val: Uuid,
     pub sub: Vec<Node>
-    
+}
+
+#[derive(Debug, Clone)]
+pub struct TextNode {
+    pub val: Uuid,
+    pub text: String,
+    pub sub: Vec<Node>
+}
+
+#[derive(Debug, Clone)]
+pub enum Node {
+    Text(TextNode),
+    Task(TaskNode),
 }
 
 impl Node {
 
+    pub fn task(uuid: Uuid, children: Vec<Node>) -> Node {
+        Node::Task(TaskNode { val: uuid, sub: children })
+    }
+
+    pub fn text(text: String, children: Vec<Node>) -> Node {
+        Node::Text(TextNode { val: Uuid::new_v4(), text, sub: children })
+    }
+
+    pub fn sub(&self) -> &[Node] {
+        match self {
+            Node::Text(t) => &t.sub,
+            Node::Task(t) => &t.sub,
+        }
+    }
+
     pub fn child_len(&self) -> usize {
-        self.sub.len()
+        self.sub().len()
     }
 
     pub fn contains(&self, uuid: &Uuid) -> bool {
-        self.sub.iter().any(|s| s.get_id() == *uuid)
+        self.sub().iter().any(|s| s.get_id() == *uuid)
     }
 
     pub fn try_get(&self, uuid: &Uuid) -> Option<&Node> {
-        self.sub.iter().find(|s| s.get_id() == *uuid)
+        self.sub().iter().find(|s| s.get_id() == *uuid)
     }
 
+    pub fn push(&mut self, row: Node) {
+        match self {
+            Node::Text(t) => t.sub.push(row),
+            Node::Task(t) => t.sub.push(row),
+        }
+    }
 
+    pub fn into_sub(self) -> Vec<Node> {
+        match self {
+            Node::Text(t) => t.sub,
+            Node::Task(t) => t.sub,
+        }
+    }
+
+    pub fn recursive_child_len(&self) -> usize {
+        let sum: usize = self.sub().iter().map(|n| n.recursive_child_len()).sum();
+        sum + 1
+    }
 
 }
 
 impl Idable for Node {
     fn get_id(&self) -> Uuid {
-        self.val
+        match self {
+            Node::Text(t) => t.val,
+            Node::Task(t) => t.val,
+        }
     }
 
     fn get_id_ref(&self) -> &Uuid {
-        &self.val
+        match self {
+            Node::Text(t) => &t.val,
+            Node::Task(t) => &t.val,
+        }
     }
 
 }
@@ -135,14 +184,14 @@ pub fn graph_nodes<T: ParentToChild>(id_map: &HashMap<Uuid, T>) -> Vec<Node> {
         let children = parent_map.get(&uuid).expect("built map");
         if !children.is_empty() {
             // Has children, so we create a TaskRow and queue that up.
-            let row = Node { val: val_uuid, sub: vec![] };
+            let row = Node::task(val_uuid, vec![]);
             task_stack.extend(children);
             rows_depth.push_back(row);
         } else {
             if rows_depth.is_empty() {
                 // We are at root level! So we just add it
                 // These are root tasks that have no children
-                let row = Node { val: val_uuid, sub: vec![] };
+                let row = Node::task(val_uuid, vec![]);
                 rows.push(row);
                 continue;
             }
@@ -151,12 +200,12 @@ pub fn graph_nodes<T: ParentToChild>(id_map: &HashMap<Uuid, T>) -> Vec<Node> {
             
             // Parent uuid
             let par = val.sub_of().expect("task went missing");
-            let row = Node { val: val_uuid, sub: vec![] };
+            let row = Node::task(val_uuid, vec![]);
             
             // The parent TaskRow
             let mut one_up = rows_depth.pop_back().expect("depth went missing");
             // add to the parent
-            one_up.sub.push(row);
+            one_up.push(row);
 
             // Get the children the parent has, remove our current task.
             let vec = parent_map.get_mut(&par).expect("parent went missing");
@@ -188,7 +237,7 @@ pub fn graph_nodes<T: ParentToChild>(id_map: &HashMap<Uuid, T>) -> Vec<Node> {
                     vec.remove(vec.iter().position(|x| *x == uuid).expect("child went missing"));
 
                     let mut one_up = rows_depth.pop_back().expect("went missing");
-                    one_up.sub.push(current);
+                    one_up.push(current);
                     if !vec.is_empty() {
                         rows_depth.push_back(one_up);
                         break;

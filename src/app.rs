@@ -57,7 +57,7 @@ impl App {
             },
             _ => {}
         }
-        self.list.event(event);
+        self.list.event(event, &self.tasks);
         
     }
 
