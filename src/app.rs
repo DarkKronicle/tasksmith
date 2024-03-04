@@ -43,19 +43,16 @@ impl App {
     }
 
     pub fn event(&mut self, event: Event) {
-        match event {
-            Event::Key(k) => {
-                match k.code {
-                    KeyCode::Char('c') => {
-                        if KeyModifiers::CONTROL == k.modifiers {
-                            self.quit()
-                        }
-                    },
-                    KeyCode::Char('q') => self.quit(),
-                    _ => {}
-                }
-            },
-            _ => {}
+        if let Event::Key(k) = event {
+            match k.code {
+                KeyCode::Char('c') => {
+                    if KeyModifiers::CONTROL == k.modifiers {
+                        self.quit()
+                    }
+                },
+                KeyCode::Char('q') => self.quit(),
+                _ => {}
+            }
         }
         self.list.event(event, &self.tasks);
         

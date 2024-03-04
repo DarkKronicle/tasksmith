@@ -12,8 +12,8 @@ pub mod text;
 pub mod task;
 
 // TODO: Bake this into config
-pub const FOLD_OPEN: &str = " ";
-pub const FOLD_CLOSE: &str = " ";
+pub const FOLD_OPEN: &str = " ";
+pub const FOLD_CLOSE: &str = " ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FoldState {

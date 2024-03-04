@@ -36,6 +36,7 @@ impl TextRow {
         let mut y_max = 0;
         let mut text_parts = vec![];
         let span: Span = self.text.clone().into();
+        text_parts.push(span.clone());
         match self.fold_state {
             FoldState::NoChildren => {},
             FoldState::Folded => {
@@ -47,7 +48,6 @@ impl TextRow {
                 text_parts.push(span);
             },
         }
-        text_parts.push(span.clone());
 
         let text: Text = Line::from(text_parts).into();
         if idx > context.list.focus {

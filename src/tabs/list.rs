@@ -126,6 +126,10 @@ impl List {
         }
     }
 
+    fn complete(&self) {
+
+    }
+
     pub fn event(&mut self, event: Event, tasks: &HashMap<Uuid, Task>) {
         if let Event::Key(k) = event {
             match k.code {
@@ -136,6 +140,9 @@ impl List {
                 KeyCode::Char('k') => {
                     self.cursor(-1);
                     self.focus();
+                }
+                KeyCode::Char('c') => {
+                    self.complete();
                 }
                 KeyCode::Enter => {
                     self.fold_row(self.cursor, tasks);

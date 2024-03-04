@@ -42,6 +42,9 @@ impl TaskRow {
                     TableColumn::Description => {
                         let mut y_offset = 0;
                         let mut lines = vec![];
+                        lines.push(
+                            Span::styled(&task.description, context.theme.text()),
+                        );
                         match self.fold_state {
                             FoldState::NoChildren => {},
                             FoldState::Folded => {
@@ -53,9 +56,6 @@ impl TaskRow {
                                 lines.push(span);
                             },
                         }
-                        lines.push(
-                            Span::styled(&task.description, context.theme.text()),
-                        );
                         let text: Text = Line::from(lines).into();
                         for line in &text.lines {
                             if context.y + y_offset >= area.height {
